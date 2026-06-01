@@ -24,3 +24,6 @@ yarn-error.log*
 # Misc
 *.tsbuildinfo
 coverage/
+
+# Large API sample fixtures (regenerate with backend/scripts/fetchSample.ts)
+backend/data/*.sample.json

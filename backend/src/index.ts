@@ -1,4 +1,6 @@
 import express, { type Request, type Response } from 'express'
+import evaluationsRouter from "./routes/evaluationsRoutes.ts";
+import coursesRouter from "./routes/coursesRoutes.ts";
 import cors from 'cors'
 
 const app = express()
@@ -14,6 +16,9 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.get('/api/hello', (_req: Request, res: Response) => {
   res.json({ message: 'Hello from the PlanYourBC backend!' })
 })
+
+app.use("/api/evaluations", evaluationsRouter);
+app.use("/api/courses", coursesRouter);
 
 app.listen(PORT, () => {
   console.log(`Backend listening on http://localhost:${PORT}`)
