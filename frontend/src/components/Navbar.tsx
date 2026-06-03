@@ -3,7 +3,7 @@ import { Bell, UserCircle2 } from 'lucide-react'
 import SearchBar from './SearchBar'
 
 const links = [
-  { to: '/', label: 'Browse', end: true },
+  { to: '/explore', label: 'Explore Classes', end: false },
   { to: '/rankings', label: 'Rankings', end: false },
   { to: '/my-plan', label: 'My Plan', end: false },
 ]

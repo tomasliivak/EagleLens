@@ -63,3 +63,73 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+# Project Context: PlanUrBC
+
+A **Boston College course-planning web app**. Students browse courses, see professor/section ratings sourced from BC's evaluation system, and explore courses by core requirement, school, department, and workload. (The app is named "PlanUrBC" in the UI; some code/README strings say "PlanYourBC" — same project.)
+
+## Stack & layout
+
+Monorepo via **npm workspaces** (root `package.json`, `workspaces: [frontend, backend]`):
+
+- **`frontend/`** — React 18 + Vite + TypeScript + react-router. Dev server on **port 5173**. Global styles in `src/index.css` (maroon BC theme via CSS vars). Routing in `src/App.tsx`.
+- **`backend/`** — Express + TypeScript, run with `tsx`. Listens on **port 3000** (`src/index.ts`, `PORT` env override).
+- **`supabase/migrations/`** — numbered SQL migrations (schema, views, RPC functions).
+- **Datastore** — Supabase Postgres, project ref `jziyrjavclicsjbealml` (see `.mcp.json`; the Supabase MCP tools operate on this project — use `apply_migration` for DDL and keep the matching file in `supabase/migrations/` in sync).
+
+## Run / dev
+
+```bash
+npm install            # at repo root (installs both workspaces)
+npm run dev            # runs frontend + backend together (concurrently)
+npm run dev:frontend   # Vite only  -> http://localhost:5173
+npm run dev:backend    # Express only -> http://localhost:3000
+npm run build          # builds both
+```
+
+Vite proxies `/api/*` → `http://localhost:3000` (`frontend/vite.config.ts`), so the frontend calls `fetch('/api/...')` with no CORS issues locally.
+
+## Two data sources + the sync pipeline
+
+The DB is the **union** of two feeds, stitched on `(course_code, canonical instructor name)`:
+
+1. **BC course feed** (live catalog) — `backend/src/fetchCourses.ts` pulls three public JSON feeds (`https://bcweb.bc.edu/aem/courses{fall,summ,sprg}.json`); shaped in `normalizeCourses.ts`. Authoritative for course/section/department metadata.
+2. **Avalanche** (`avalanche.bc.edu`) — BC's internal evaluations system. `backend/src/services/avalancheService.ts` scrapes it (POST → HTML table → parsed with Cheerio) for summary ratings and drilldown metrics.
+
+**Stitching:** instructor names are canonicalized to `"First Last"` by `backend/src/lib/instructorName.ts` (`standardizeInstructorName`, `parseBCInstructors`), so BC's `"Last, First"` and Avalanche's `"First Last"` match deterministically. Placeholder "instructors" (Department, TA, etc.) are filtered out.
+
+**`npm run sync`** (`backend/scripts/syncDatabase.ts`) end-to-end: load BC catalog → upsert `departments / core_requirements / courses / course_core_requirements / instructors / sections / section_instructors` → query Avalanche summaries (concurrency-limited) → drilldown backfill once per course+instructor pair → upsert `evaluations`. Requires `SUPABASE_URL` + **`SUPABASE_SERVICE_ROLE_KEY`** (bypasses RLS). Set `SYNC_LIMIT=N` to cap Avalanche queries when testing.
+
+## Database
+
+Tables: `departments`, `core_requirements`, `courses`, `course_core_requirements`, `instructors`, `sections`, `section_instructors`, `evaluations`. Aggregation **views** (all `security_invoker`): `instructor_ratings` (a prof's global average), `instructor_course_ratings` (a prof in one course), `course_ratings` (a course across all profs). RLS = public read on every table.
+
+**RPC functions** (defined in migrations, called via `supabase.rpc(...)`): `get_course_instructors`, `get_course_professors`, `explore_courses`, `list_section_terms`.
+
+Notable column facts:
+- `core_requirements`: the human-readable label is the **`code`** column (e.g. `Arts`, `Social Science`, `Theology`); **`name` is null**.
+- `sections`: has `term`, `credits`, `college` (BC college code), `meeting_text` (packs `"<Building Room> <Days> <Time>"`, e.g. `"Fulton Hall 423 WF 11:00AM-11:50AM"`).
+
+## Backend API (`backend/src/`)
+
+- Health: `GET /api/health`, `GET /api/hello`.
+- **Courses** (`controllers/coursesController.ts`, `routes/coursesRoutes.ts`): `GET /api/courses/search?q=`, `/explore?term=&college=&department=&core=&minReviews=&maxWorkload=`, `/filters`, `/:courseCode?term=`, `/:courseCode/professors?term=`. **Route order matters**: `/search`, `/explore`, `/filters` are registered **before** `/:courseCode` so the param route doesn't shadow them.
+- **Evaluations** (`/api/evaluations/summary?query=`, `/api/evaluations/drilldown?...`): these hit **Avalanche live**, not the DB.
+- Backend Supabase client (`backend/src/lib/supabase.ts`) prefers the **anon** key for API reads (falls back to service-role only if that's all that's configured).
+
+## Frontend routes / pages
+
+Real: `/` `HomePage`, `/explore` `ExplorePage`, `/courses/:courseCode` `CoursePage`. Placeholders ("Coming soon"): `/rankings`, `/my-plan`, and footer pages (`/privacy`, `/terms`, `/contact`, `/about` via `PlaceholderPage`). All wrapped in `components/Layout.tsx` (Navbar + Footer). `SearchBar` is debounced and calls `/api/courses/search`. Reusable CSS classes: `.metric*`, `.sort*`, `.tag`, `.pill`, `.container--fluid`, `.stat-box*`.
+
+## Conventions & gotchas
+
+- **Default term is `2026FALL`** (data currently holds `2026FALL` and `2026SUMM`).
+- **Workload (`effort_avg_hours_weekly`) is a 1–5 rating, NOT literal hours.** Render it as Light/Moderate/Heavy via `workloadLabel` (thresholds: `>=3.5` Heavy, `>=2.3` Moderate, else Light). Never display it as "hrs/week".
+- **Course & explore aggregates average per *unique instructor* of the term**, not per section, so a prof teaching many sections doesn't dominate the numbers.
+- **0-credit sections are excluded** (`credits <> 0`) from the course/explore RPCs — they're labs/discussions with no standalone rating.
+- PostgREST caps plain table selects at ~1000 rows, so a `select` for distinct facets silently misses values — use a dedicated RPC instead (e.g. `list_section_terms` for the semester list).
+- Numeric columns come back from PostgREST/`supabase-js` as **strings**; convert with the `num()` helper in the controller. Bigint counts can also arrive as strings (`Number(...)` them).
+- **Never commit `backend/.env`** — the service-role key is local-only and must never reach the browser.
+- The UI rates "evals" (evaluations), e.g. the Explore page shows "N evals"; the underlying field is `reviewCount` / `evaluation_count`.

@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import CoursePage from './pages/CoursePage'
 import RankingsPage from './pages/RankingsPage'
 import MyPlanPage from './pages/MyPlanPage'
+import ExplorePage from './pages/ExplorePage'
 import PlaceholderPage from './pages/PlaceholderPage'
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/explore" element={<ExplorePage />} />
         <Route path="/rankings" element={<RankingsPage />} />
         <Route path="/my-plan" element={<MyPlanPage />} />
         <Route path="/courses/:courseCode" element={<CoursePage />} />

@@ -52,7 +52,7 @@ export async function searchCourses(
 }
 
 // Readable names for BC's college codes.
-const COLLEGE_LABELS: Record<string, string> = {
+export const COLLEGE_LABELS: Record<string, string> = {
   MCAS: "Arts & Sciences",
   CSOM: "Carroll School of Management",
   CSON: "Connell School of Nursing",
@@ -225,4 +225,115 @@ export async function getCourseProfessors(
       courseEvaluations: row.course_evaluations,
     })),
   });
+}
+
+type ExploreRow = {
+  course_code: string;
+  title: string | null;
+  best_instructor_name: string | null;
+  best_instructor_rating: string | null;
+  avg_rating: string | null;
+  review_count: number | null;
+  difficulty: string | null;
+  avg_workload: string | null;
+  core_requirements: string[] | null;
+};
+
+// "2026FALL" -> "Fall 2026", "2026SUMM" -> "Summer 2026", etc.
+const SEASON_LABELS: Record<string, string> = {
+  FALL: "Fall",
+  SPRING: "Spring",
+  SUMM: "Summer",
+  SUMMER: "Summer",
+  WINTER: "Winter",
+};
+function termLabel(term: string): string {
+  const m = term.match(/^(\d{4})(.+)$/);
+  if (!m) return term;
+  const [, year, season] = m;
+  return `${SEASON_LABELS[season.toUpperCase()] ?? season} ${year}`;
+}
+
+// GET /api/courses/explore?term=2026FALL&college=MCAS&department=...&core=Arts
+//   &minReviews=10&maxWorkload=3
+// Filtered list of courses offered in the term, with per-course aggregates and
+// the highest-rated current instructor. Sorting happens client-side.
+export async function exploreCourses(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const str = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim() : null;
+  const intOf = (v: unknown) => {
+    const s = str(v);
+    if (s === null) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const term = str(req.query.term) ?? DEFAULT_TERM;
+
+  const { data, error } = await supabase.rpc("explore_courses", {
+    p_term: term,
+    p_college: str(req.query.college),
+    p_department: str(req.query.department),
+    p_core: str(req.query.core),
+    p_min_reviews: intOf(req.query.minReviews) ?? 0,
+    p_max_workload: intOf(req.query.maxWorkload),
+  });
+
+  if (error) {
+    console.error("Explore lookup failed:", error.message);
+    res.status(500).json({ error: "Explore lookup failed." });
+    return;
+  }
+
+  const courses = ((data ?? []) as ExploreRow[]).map((row) => ({
+    courseCode: row.course_code,
+    title: row.title,
+    bestInstructorName: row.best_instructor_name,
+    bestInstructorRating: num(row.best_instructor_rating),
+    avgRating: num(row.avg_rating),
+    reviewCount: Number(row.review_count ?? 0),
+    difficulty: num(row.difficulty),
+    avgWorkload: num(row.avg_workload),
+    coreRequirements: row.core_requirements ?? [],
+  }));
+
+  res.json({ term, termLabel: termLabel(term), count: courses.length, courses });
+}
+
+// GET /api/courses/filters
+// Dropdown options for the Explore page.
+export async function getFilters(_req: Request, res: Response): Promise<void> {
+  const [termResult, deptResult, coreResult] = await Promise.all([
+    supabase.rpc("list_section_terms"),
+    supabase.from("departments").select("name").not("name", "is", null),
+    supabase.from("core_requirements").select("code"),
+  ]);
+
+  const error = termResult.error ?? deptResult.error ?? coreResult.error;
+  if (error) {
+    console.error("Filter lookup failed:", error.message);
+    res.status(500).json({ error: "Filter lookup failed." });
+    return;
+  }
+
+  const terms = ((termResult.data ?? []) as { term: string }[]).map((r) => ({
+    value: r.term,
+    label: termLabel(r.term),
+  }));
+
+  const departments = [
+    ...new Set((deptResult.data ?? []).map((r) => r.name as string)),
+  ].sort();
+
+  const cores = (coreResult.data ?? []).map((r) => r.code as string).sort();
+
+  const colleges = Object.entries(COLLEGE_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
+
+  res.json({ terms, colleges, departments, cores });
 }
