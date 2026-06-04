@@ -5,7 +5,6 @@ import SearchBar from './SearchBar'
 const links = [
   { to: '/explore', label: 'Explore Classes', end: false },
   { to: '/rankings', label: 'Rankings', end: false },
-  { to: '/my-plan', label: 'My Plan', end: false },
 ]
 
 export default function Navbar() {

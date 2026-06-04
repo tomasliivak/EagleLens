@@ -1,9 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import HomePage from './pages/HomePage'
 import CoursePage from './pages/CoursePage'
 import RankingsPage from './pages/RankingsPage'
-import MyPlanPage from './pages/MyPlanPage'
 import ExplorePage from './pages/ExplorePage'
 import PlaceholderPage from './pages/PlaceholderPage'
 
@@ -13,9 +12,12 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/explore" element={<ExplorePage />} />
-        <Route path="/rankings" element={<RankingsPage />} />
-        <Route path="/my-plan" element={<MyPlanPage />} />
+        <Route path="/rankings" element={<Navigate to="/rankings/classes" replace />} />
+        <Route path="/rankings/:entity" element={<RankingsPage />} />
         <Route path="/courses/:courseCode" element={<CoursePage />} />
+        <Route path="/professors/:id" element={<PlaceholderPage title="Professor" />} />
+        <Route path="/departments/:code" element={<PlaceholderPage title="Department" />} />
+        <Route path="/schools/:code" element={<PlaceholderPage title="School" />} />
         <Route path="/privacy" element={<PlaceholderPage title="Privacy Policy" />} />
         <Route path="/terms" element={<PlaceholderPage title="Terms of Service" />} />
         <Route path="/contact" element={<PlaceholderPage title="Contact Support" />} />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Star,
@@ -47,12 +47,22 @@ const sortOptions: { key: SortKey; label: string; field: keyof ExploreCourse }[]
 ]
 
 const minReviewOptions = [
-  { label: 'Min Evals', value: 0 },
+  { label: '3+ evals', value: 3 },
   { label: '5+ evals', value: 5 },
   { label: '10+ evals', value: 10 },
   { label: '25+ evals', value: 25 },
   { label: '50+ evals', value: 50 },
+  { label: 'All', value: 0 },
 ]
+
+const PAGE_SIZE = 25
+
+// Maps the UI sort key to the explore_courses RPC's p_sort value.
+const sortFieldParam: Record<SortKey, string> = {
+  rating: 'rating',
+  challenging: 'difficulty',
+  hours: 'workload',
+}
 
 const maxWorkloadOptions: { label: string; value: number | null }[] = [
   { label: 'Max Workload', value: null },
@@ -68,7 +78,7 @@ const emptyFilters: Filters = {
   core: '',
   college: '',
   department: '',
-  minReviews: 0,
+  minReviews: 3,
   maxWorkload: null,
 }
 
@@ -90,8 +100,25 @@ export default function ExplorePage() {
   const [courses, setCourses] = useState<ExploreCourse[]>([])
   const [resultTermLabel, setResultTermLabel] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [sort, setSort] = useState<SortKey>('rating')
   const [dir, setDir] = useState<SortDir>('desc')
+
+  // Build the explore query string for a given page offset.
+  const buildParams = (f: Filters, offset: number) => {
+    const params = new URLSearchParams({ term: f.term })
+    if (f.core) params.set('core', f.core)
+    if (f.college) params.set('college', f.college)
+    if (f.department) params.set('department', f.department)
+    if (f.minReviews) params.set('minReviews', String(f.minReviews))
+    if (f.maxWorkload !== null) params.set('maxWorkload', String(f.maxWorkload))
+    params.set('sort', sortFieldParam[sort])
+    params.set('order', dir)
+    params.set('limit', String(PAGE_SIZE))
+    params.set('offset', String(offset))
+    return params
+  }
 
   useEffect(() => {
     fetch('/api/courses/filters')
@@ -100,26 +127,23 @@ export default function ExplorePage() {
       .catch(() => {})
   }, [])
 
-  // Fetch whenever the applied filters change (Search button or a pill/chip).
+  // Fetch the first page whenever the applied filters or the sort change. The
+  // server sorts and pages, so changing sort/dir refetches from the top.
   useEffect(() => {
     if (!applied) {
       setCourses([])
+      setHasMore(false)
       return
     }
     let active = true
     setLoading(true)
-    const params = new URLSearchParams({ term: applied.term })
-    if (applied.core) params.set('core', applied.core)
-    if (applied.college) params.set('college', applied.college)
-    if (applied.department) params.set('department', applied.department)
-    if (applied.minReviews) params.set('minReviews', String(applied.minReviews))
-    if (applied.maxWorkload !== null) params.set('maxWorkload', String(applied.maxWorkload))
-    fetch('/api/courses/explore?' + params.toString())
+    fetch('/api/courses/explore?' + buildParams(applied, 0).toString())
       .then((r) => r.json())
-      .then((data: { courses: ExploreCourse[]; termLabel: string }) => {
+      .then((data: { courses: ExploreCourse[]; termLabel: string; hasMore: boolean }) => {
         if (!active) return
         setCourses(data.courses)
         setResultTermLabel(data.termLabel)
+        setHasMore(data.hasMore)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -127,21 +151,20 @@ export default function ExplorePage() {
     return () => {
       active = false
     }
-  }, [applied])
+  }, [applied, sort, dir])
 
-  const sorted = useMemo(() => {
-    const field = sortOptions.find((o) => o.key === sort)!.field
-    const mult = dir === 'desc' ? 1 : -1
-    return [...courses].sort((a, b) => {
-      const av = a[field] as number | null
-      const bv = b[field] as number | null
-      // Missing values always sort to the bottom, regardless of direction.
-      if (av === null && bv === null) return 0
-      if (av === null) return 1
-      if (bv === null) return -1
-      return (bv - av) * mult
-    })
-  }, [courses, sort, dir])
+  // Append the next page of results.
+  const loadMore = () => {
+    if (!applied) return
+    setLoadingMore(true)
+    fetch('/api/courses/explore?' + buildParams(applied, courses.length).toString())
+      .then((r) => r.json())
+      .then((data: { courses: ExploreCourse[]; hasMore: boolean }) => {
+        setCourses((prev) => [...prev, ...data.courses])
+        setHasMore(data.hasMore)
+      })
+      .finally(() => setLoadingMore(false))
+  }
 
   // Apply a complete filter set (Search button or a preset pill).
   const run = (next: Filters) => {
@@ -328,7 +351,7 @@ export default function ExplorePage() {
                 <div className="explore__count">
                   {loading
                     ? 'Loading…'
-                    : `${sorted.length} course${sorted.length === 1 ? '' : 's'} available for ${
+                    : `Showing ${courses.length} course${courses.length === 1 ? '' : 's'} for ${
                         resultTermLabel || applied.term
                       }`}
                 </div>
@@ -371,11 +394,11 @@ export default function ExplorePage() {
               </button>
             </div>
 
-            {!loading && sorted.length === 0 && (
+            {!loading && courses.length === 0 && (
               <p className="placeholder-note">No courses match these filters.</p>
             )}
 
-            {sorted.map((course) => (
+            {courses.map((course) => (
               <article className="ecard" key={course.courseCode}>
                 <div className="ecard__head">
                   <div>
@@ -449,6 +472,19 @@ export default function ExplorePage() {
                 </div>
               </article>
             ))}
+
+            {hasMore && (
+              <div className="explore__more">
+                <button
+                  type="button"
+                  className="btn--outline"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? 'Loading…' : 'Load More Courses'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -273,6 +273,14 @@ export async function exploreCourses(
 
   const term = str(req.query.term) ?? DEFAULT_TERM;
 
+  const sortKeys = ["rating", "difficulty", "workload"];
+  const sort = sortKeys.includes(str(req.query.sort) ?? "")
+    ? (str(req.query.sort) as string)
+    : "rating";
+  const order = req.query.order === "asc" ? "asc" : "desc";
+  const limit = Math.min(50, Math.max(1, intOf(req.query.limit) ?? 25));
+  const offset = Math.max(0, intOf(req.query.offset) ?? 0);
+
   const { data, error } = await supabase.rpc("explore_courses", {
     p_term: term,
     p_college: str(req.query.college),
@@ -280,6 +288,10 @@ export async function exploreCourses(
     p_core: str(req.query.core),
     p_min_reviews: intOf(req.query.minReviews) ?? 0,
     p_max_workload: intOf(req.query.maxWorkload),
+    p_sort: sort,
+    p_order: order,
+    p_limit: limit,
+    p_offset: offset,
   });
 
   if (error) {
@@ -300,7 +312,13 @@ export async function exploreCourses(
     coreRequirements: row.core_requirements ?? [],
   }));
 
-  res.json({ term, termLabel: termLabel(term), count: courses.length, courses });
+  res.json({
+    term,
+    termLabel: termLabel(term),
+    count: courses.length,
+    hasMore: courses.length === limit,
+    courses,
+  });
 }
 
 // GET /api/courses/filters
