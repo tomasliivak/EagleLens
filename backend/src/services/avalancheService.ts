@@ -297,6 +297,8 @@ function normalizeSummaryRow(row: ParsedAvalancheRow): EvaluationSummary {
       row.course_overall ?? row.courseoverall
     ),
 
+    ...parseRatio(row.ratio),
+
     modality: row.modality ?? null,
 
     rawRow: row,
@@ -339,6 +341,23 @@ function normalizeDrilldownRow(params: {
 
     rawRow: row,
   };
+}
+
+/**
+ * Parses Avalanche's "ratio" field ("[responses/enrolled]", e.g. "[17/18]")
+ * into respondent and enrollment counts. Returns nulls when absent/unparseable.
+ */
+function parseRatio(value: string | undefined): {
+  responseCount: number | null;
+  enrolledCount: number | null;
+} {
+  const match = value?.match(/(\d+)\s*\/\s*(\d+)/);
+
+  if (!match) {
+    return { responseCount: null, enrolledCount: null };
+  }
+
+  return { responseCount: Number(match[1]), enrolledCount: Number(match[2]) };
 }
 
 function parseOptionalNumber(value: string | undefined): number | null {

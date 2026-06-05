@@ -289,6 +289,12 @@ export async function exploreCourses(
     p_core: str(req.query.core),
     p_min_reviews: intOf(req.query.minReviews) ?? 0,
     p_max_workload: intOf(req.query.maxWorkload),
+    p_credits: intOf(req.query.credits),
+    p_student_level: ["Undergraduate", "Graduate"].includes(
+      str(req.query.studentLevel) ?? ""
+    )
+      ? str(req.query.studentLevel)
+      : null,
     p_sort: sort,
     p_order: order,
     p_limit: limit,

@@ -15,6 +15,10 @@ export type EvaluationSummary = {
   instructorOverall: number | null;
   courseOverall: number | null;
 
+  // Parsed from Avalanche's "ratio" field ("[responses/enrolled]").
+  responseCount: number | null;
+  enrolledCount: number | null;
+
   modality: string | null;
 
   /**

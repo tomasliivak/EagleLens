@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import {
   Star,
   SlidersHorizontal,
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
-  Search,
   X,
 } from 'lucide-react'
 
@@ -37,13 +36,15 @@ type Filters = {
   department: string
   minReviews: number
   maxWorkload: number | null
+  credits: number | null
+  studentLevel: string
 }
 
 type SortKey = 'rating' | 'challenging' | 'hours'
 type SortDir = 'desc' | 'asc'
 
 const sortOptions: { key: SortKey; label: string; field: keyof ExploreCourse }[] = [
-  { key: 'rating', label: 'Rating', field: 'avgRating' },
+  { key: 'rating', label: 'Adjusted Rating', field: 'avgRating' },
   { key: 'challenging', label: 'Intellectually Challenging', field: 'difficulty' },
   { key: 'hours', label: 'Hours / Week', field: 'avgWorkload' },
 ]
@@ -73,6 +74,27 @@ const maxWorkloadOptions: { label: string; value: number | null }[] = [
   { label: 'Heavy (≤ 4)', value: 4 },
 ]
 
+// Credits select. Default is 3; 'all' clears the filter. Value is the string
+// stored in the URL ('1'..'4' or 'all').
+const DEFAULT_CREDITS = 3
+const creditOptions: { label: string; value: string }[] = [
+  { label: '1 Credit', value: '1' },
+  { label: '2 Credits', value: '2' },
+  { label: '3 Credits', value: '3' },
+  { label: '4 Credits', value: '4' },
+  { label: 'All Credits', value: 'all' },
+]
+
+// Student-level select. Default Undergraduate; 'all' (the "Both" option) clears
+// the filter. 'Undergraduate'/'Graduate' match that level plus cross-listed
+// 'Both' sections server-side.
+const DEFAULT_STUDENT_LEVEL = 'Undergraduate'
+const studentLevelOptions: { label: string; value: string }[] = [
+  { label: 'Undergraduate', value: 'Undergraduate' },
+  { label: 'Graduate', value: 'Graduate' },
+  { label: 'Both', value: 'all' },
+]
+
 const DEFAULT_TERM = '2026FALL'
 
 const emptyFilters: Filters = {
@@ -82,6 +104,8 @@ const emptyFilters: Filters = {
   department: '',
   minReviews: 3,
   maxWorkload: null,
+  credits: DEFAULT_CREDITS,
+  studentLevel: DEFAULT_STUDENT_LEVEL,
 }
 
 const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(1))
@@ -96,16 +120,46 @@ const workloadLabel = (v: number | null) => {
 
 export default function ExplorePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [options, setOptions] = useState<FilterOptions | null>(null)
-  const [draft, setDraft] = useState<Filters>(emptyFilters)
-  const [applied, setApplied] = useState<Filters | null>(null)
   const [courses, setCourses] = useState<ExploreCourse[]>([])
   const [resultTermLabel, setResultTermLabel] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
-  const [sort, setSort] = useState<SortKey>('rating')
-  const [dir, setDir] = useState<SortDir>('desc')
+
+  // The URL is the source of truth — every control reads from here and writes
+  // back, so filters are shareable and back/forward-aware (like RankingsPage).
+  const filters: Filters = {
+    term: searchParams.get('term') ?? DEFAULT_TERM,
+    core: searchParams.get('core') ?? '',
+    college: searchParams.get('college') ?? '',
+    department: searchParams.get('department') ?? '',
+    minReviews: searchParams.has('minReviews') ? Number(searchParams.get('minReviews')) : 3,
+    maxWorkload: searchParams.has('maxWorkload') ? Number(searchParams.get('maxWorkload')) : null,
+    // Absent = default 3; 'all' = no filter (null); otherwise the number.
+    credits:
+      searchParams.get('credits') === null
+        ? DEFAULT_CREDITS
+        : searchParams.get('credits') === 'all'
+        ? null
+        : Number(searchParams.get('credits')),
+    // Absent = default Undergraduate; 'all' = no filter (the "Both" option).
+    studentLevel: searchParams.get('studentLevel') ?? DEFAULT_STUDENT_LEVEL,
+  }
+  const sort: SortKey = sortOptions.find((o) => o.key === searchParams.get('sort'))?.key ?? 'rating'
+  const dir: SortDir = searchParams.get('order') === 'asc' ? 'asc' : 'desc'
+
+  // Merge a patch into the URL params; null/empty values drop out so defaults
+  // don't clutter the URL.
+  const updateParams = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === '') next.delete(key)
+      else next.set(key, value)
+    }
+    setSearchParams(next)
+  }
 
   // Build the explore query string for a given page offset.
   const buildParams = (f: Filters, offset: number) => {
@@ -115,6 +169,8 @@ export default function ExplorePage() {
     if (f.department) params.set('department', f.department)
     if (f.minReviews) params.set('minReviews', String(f.minReviews))
     if (f.maxWorkload !== null) params.set('maxWorkload', String(f.maxWorkload))
+    if (f.credits !== null) params.set('credits', String(f.credits))
+    if (f.studentLevel !== 'all') params.set('studentLevel', f.studentLevel)
     params.set('sort', sortFieldParam[sort])
     params.set('order', dir)
     params.set('limit', String(PAGE_SIZE))
@@ -129,17 +185,13 @@ export default function ExplorePage() {
       .catch(() => {})
   }, [])
 
-  // Fetch the first page whenever the applied filters or the sort change. The
-  // server sorts and pages, so changing sort/dir refetches from the top.
+  // Refetch the first page whenever any filter or the sort changes (i.e. the URL
+  // changes). The server sorts and pages, so changing sort/dir refetches from
+  // the top.
   useEffect(() => {
-    if (!applied) {
-      setCourses([])
-      setHasMore(false)
-      return
-    }
     let active = true
     setLoading(true)
-    fetch(api('/api/courses/explore?' + buildParams(applied, 0).toString()))
+    fetch(api('/api/courses/explore?' + buildParams(filters, 0).toString()))
       .then((r) => r.json())
       .then((data: { courses: ExploreCourse[]; termLabel: string; hasMore: boolean }) => {
         if (!active) return
@@ -153,13 +205,13 @@ export default function ExplorePage() {
     return () => {
       active = false
     }
-  }, [applied, sort, dir])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()])
 
   // Append the next page of results.
   const loadMore = () => {
-    if (!applied) return
     setLoadingMore(true)
-    fetch(api('/api/courses/explore?' + buildParams(applied, courses.length).toString()))
+    fetch(api('/api/courses/explore?' + buildParams(filters, courses.length).toString()))
       .then((r) => r.json())
       .then((data: { courses: ExploreCourse[]; hasMore: boolean }) => {
         setCourses((prev) => [...prev, ...data.courses])
@@ -168,52 +220,60 @@ export default function ExplorePage() {
       .finally(() => setLoadingMore(false))
   }
 
-  // Apply a complete filter set (Search button or a preset pill).
-  const run = (next: Filters) => {
-    setDraft(next)
-    setApplied(next)
+  // Apply a preset: replace the whole query with a fresh set (omitting defaults).
+  const applyPreset = (f: Filters, s: SortKey, d: SortDir) => {
+    const next = new URLSearchParams()
+    if (f.term !== DEFAULT_TERM) next.set('term', f.term)
+    if (f.core) next.set('core', f.core)
+    if (f.college) next.set('college', f.college)
+    if (f.department) next.set('department', f.department)
+    if (f.minReviews !== 3) next.set('minReviews', String(f.minReviews))
+    if (f.maxWorkload !== null) next.set('maxWorkload', String(f.maxWorkload))
+    if (f.credits === null) next.set('credits', 'all')
+    else if (f.credits !== DEFAULT_CREDITS) next.set('credits', String(f.credits))
+    if (f.studentLevel !== DEFAULT_STUDENT_LEVEL) next.set('studentLevel', f.studentLevel)
+    if (s !== 'rating') next.set('sort', s)
+    if (d !== 'desc') next.set('order', d)
+    setSearchParams(next)
   }
 
-  const clearAll = () => {
-    setDraft(emptyFilters)
-    setApplied(null)
-    setSort('rating')
-    setDir('desc')
-  }
-
-  // Drop a single applied filter (chip ×) and re-run.
-  const removeFilter = (patch: Partial<Filters>) => {
-    if (!applied) return
-    run({ ...applied, ...patch })
-  }
+  const clearAll = () => setSearchParams(new URLSearchParams())
 
   const chips: { label: string; onRemove: () => void }[] = []
-  if (applied) {
-    chips.push({
-      label: `Offered ${resultTermLabel || applied.term}`,
-      onRemove: () => removeFilter({ term: DEFAULT_TERM }),
-    })
-    if (applied.core)
-      chips.push({ label: `${applied.core} Core`, onRemove: () => removeFilter({ core: '' }) })
-    if (applied.college) {
-      const c = options?.colleges.find((o) => o.value === applied.college)
-      chips.push({ label: c?.label ?? applied.college, onRemove: () => removeFilter({ college: '' }) })
-    }
-    if (applied.department)
-      chips.push({ label: applied.department, onRemove: () => removeFilter({ department: '' }) })
-    if (applied.minReviews)
-      chips.push({ label: `${applied.minReviews}+ evals`, onRemove: () => removeFilter({ minReviews: 0 }) })
-    if (applied.maxWorkload !== null)
-      chips.push({
-        label: `Under ${applied.maxWorkload} workload`,
-        onRemove: () => removeFilter({ maxWorkload: null }),
-      })
+  chips.push({
+    label: `Offered ${resultTermLabel || filters.term}`,
+    onRemove: () => updateParams({ term: null }),
+  })
+  if (filters.core)
+    chips.push({ label: `${filters.core} Core`, onRemove: () => updateParams({ core: null }) })
+  if (filters.college) {
+    const c = options?.colleges.find((o) => o.value === filters.college)
+    chips.push({ label: c?.label ?? filters.college, onRemove: () => updateParams({ college: null }) })
   }
+  if (filters.department)
+    chips.push({ label: filters.department, onRemove: () => updateParams({ department: null }) })
+  if (filters.minReviews)
+    chips.push({ label: `${filters.minReviews}+ evals`, onRemove: () => updateParams({ minReviews: '0' }) })
+  if (filters.credits !== null)
+    chips.push({
+      label: `${filters.credits} credit${filters.credits === 1 ? '' : 's'}`,
+      onRemove: () => updateParams({ credits: 'all' }),
+    })
+  if (filters.studentLevel !== 'all')
+    chips.push({
+      label: filters.studentLevel,
+      onRemove: () => updateParams({ studentLevel: 'all' }),
+    })
+  if (filters.maxWorkload !== null)
+    chips.push({
+      label: `Under ${filters.maxWorkload} workload`,
+      onRemove: () => updateParams({ maxWorkload: null }),
+    })
 
-  const heading = applied?.core
-    ? `${applied.core} Core Courses`
-    : applied?.department
-    ? `${applied.department} Courses`
+  const heading = filters.core
+    ? `${filters.core} Core Courses`
+    : filters.department
+    ? `${filters.department} Courses`
     : 'Courses'
 
   return (
@@ -229,8 +289,8 @@ export default function ExplorePage() {
           <div className="filters__grid">
             <select
               className="filters__select"
-              value={draft.core}
-              onChange={(e) => setDraft({ ...draft, core: e.target.value })}
+              value={filters.core}
+              onChange={(e) => updateParams({ core: e.target.value })}
             >
               <option value="">Core Requirement</option>
               {options?.cores.map((c) => (
@@ -242,8 +302,8 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={draft.college}
-              onChange={(e) => setDraft({ ...draft, college: e.target.value })}
+              value={filters.college}
+              onChange={(e) => updateParams({ college: e.target.value })}
             >
               <option value="">School</option>
               {options?.colleges.map((c) => (
@@ -255,8 +315,8 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={draft.department}
-              onChange={(e) => setDraft({ ...draft, department: e.target.value })}
+              value={filters.department}
+              onChange={(e) => updateParams({ department: e.target.value })}
             >
               <option value="">Department</option>
               {options?.departments.map((d) => (
@@ -268,8 +328,8 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={draft.term}
-              onChange={(e) => setDraft({ ...draft, term: e.target.value })}
+              value={filters.term}
+              onChange={(e) => updateParams({ term: e.target.value === DEFAULT_TERM ? null : e.target.value })}
             >
               {options?.terms.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -280,8 +340,10 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={draft.minReviews}
-              onChange={(e) => setDraft({ ...draft, minReviews: Number(e.target.value) })}
+              value={filters.minReviews}
+              onChange={(e) =>
+                updateParams({ minReviews: Number(e.target.value) === 3 ? null : e.target.value })
+              }
             >
               {minReviewOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -292,13 +354,8 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={draft.maxWorkload ?? ''}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  maxWorkload: e.target.value === '' ? null : Number(e.target.value),
-                })
-              }
+              value={filters.maxWorkload ?? ''}
+              onChange={(e) => updateParams({ maxWorkload: e.target.value === '' ? null : e.target.value })}
             >
               {maxWorkloadOptions.map((o) => (
                 <option key={o.label} value={o.value ?? ''}>
@@ -307,10 +364,33 @@ export default function ExplorePage() {
               ))}
             </select>
 
-            <button type="button" className="filters__search" onClick={() => run(draft)}>
-              <Search size={16} />
-              Search
-            </button>
+            <select
+              className="filters__select"
+              value={filters.credits === null ? 'all' : String(filters.credits)}
+              onChange={(e) => updateParams({ credits: e.target.value === '3' ? null : e.target.value })}
+            >
+              {creditOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="filters__select"
+              value={filters.studentLevel}
+              onChange={(e) =>
+                updateParams({
+                  studentLevel: e.target.value === DEFAULT_STUDENT_LEVEL ? null : e.target.value,
+                })
+              }
+            >
+              {studentLevelOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="filters__popular">
@@ -318,22 +398,14 @@ export default function ExplorePage() {
             <button
               type="button"
               className="pill"
-              onClick={() => {
-                setSort('rating')
-                setDir('desc')
-                run({ ...emptyFilters, core: 'Arts' })
-              }}
+              onClick={() => applyPreset({ ...emptyFilters, core: 'Arts' }, 'rating', 'desc')}
             >
               Highest-Rated Arts Core
             </button>
             <button
               type="button"
               className="pill"
-              onClick={() => {
-                setSort('challenging')
-                setDir('asc')
-                run({ ...emptyFilters, core: 'Social Science' })
-              }}
+              onClick={() => applyPreset({ ...emptyFilters, core: 'Social Science' }, 'challenging', 'asc')}
             >
               Easiest Social Science
             </button>
@@ -341,12 +413,7 @@ export default function ExplorePage() {
         </div>
 
         {/* Results */}
-        {!applied ? (
-          <p className="placeholder-note explore__empty">
-            Choose your filters above and hit Search to explore courses.
-          </p>
-        ) : (
-          <>
+        <>
             <div className="explore__results-head">
               <div>
                 <h2 className="section__title explore__h2">{heading}</h2>
@@ -354,14 +421,19 @@ export default function ExplorePage() {
                   {loading
                     ? 'Loading…'
                     : `Showing ${courses.length} course${courses.length === 1 ? '' : 's'} for ${
-                        resultTermLabel || applied.term
+                        resultTermLabel || filters.term
                       }`}
                 </div>
               </div>
               <div className="sort">
                 <SlidersHorizontal size={18} />
                 <span>Sort by</span>
-                <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+                <select
+                  value={sort}
+                  onChange={(e) =>
+                    updateParams({ sort: e.target.value === 'rating' ? null : e.target.value })
+                  }
+                >
                   {sortOptions.map((o) => (
                     <option key={o.key} value={o.key}>
                       {o.label}
@@ -371,7 +443,7 @@ export default function ExplorePage() {
                 <button
                   type="button"
                   className="sort__dir"
-                  onClick={() => setDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+                  onClick={() => updateParams({ order: dir === 'desc' ? 'asc' : null })}
                   title={dir === 'desc' ? 'Highest first' : 'Lowest first'}
                 >
                   {dir === 'desc' ? (
@@ -454,7 +526,7 @@ export default function ExplorePage() {
                       <div className="ecard__metric">
                         <div className="ecard__metric-label">Offered</div>
                         <div className="ecard__metric-val ecard__metric-val--word">
-                          {resultTermLabel || applied.term}
+                          {resultTermLabel || filters.term}
                         </div>
                       </div>
                     </div>
@@ -493,8 +565,7 @@ export default function ExplorePage() {
                 </button>
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
     </main>
   )

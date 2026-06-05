@@ -58,13 +58,24 @@ export async function getRankings(req: Request, res: Response): Promise<void> {
     schools: "rank_schools",
   }[entity];
 
-  const { data, error } = await supabase.rpc(fn, {
+  const params: Record<string, unknown> = {
     p_metric: metric,
     p_order: order,
     p_min_evals: minEvals,
     p_limit: limit,
     p_offset: offset,
-  });
+  };
+  // Credits filter only applies to classes; null = all. Other entities' RPCs
+  // don't take this argument.
+  if (entity === "classes") {
+    const credits = Number(req.query.credits);
+    params.p_credits = Number.isFinite(credits) ? credits : null;
+    const lvl = typeof req.query.studentLevel === "string" ? req.query.studentLevel : "";
+    params.p_student_level =
+      lvl === "Undergraduate" || lvl === "Graduate" ? lvl : null;
+  }
+
+  const { data, error } = await supabase.rpc(fn, params);
 
   if (error) {
     console.error("Rankings lookup failed:", error.message);

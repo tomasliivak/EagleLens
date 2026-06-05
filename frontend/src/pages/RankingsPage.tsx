@@ -24,10 +24,13 @@ const ENTITIES: { key: EntityKey; tab: string; noun: string; primaryCol: string;
   { key: 'schools', tab: 'Schools', noun: 'Schools', primaryCol: 'School', secondaryCol: null },
 ]
 
+// rating/difficulty/workload are ranked by a Bayesian-adjusted score, so their
+// selector/heading say "Adjusted …"; the value columns (col) still show the raw
+// average. reviews/variation sort by raw values and aren't relabeled.
 const METRICS: { key: string; pill: string; heading: string; col: string }[] = [
-  { key: 'rating', pill: 'Overall Rating', heading: 'Overall Rating', col: 'Overall Rating' },
-  { key: 'difficulty', pill: 'Difficulty', heading: 'Difficulty', col: 'Difficulty' },
-  { key: 'workload', pill: 'Workload', heading: 'Workload', col: 'Workload' },
+  { key: 'rating', pill: 'Adjusted Overall Rating', heading: 'Adjusted Overall Rating', col: 'Overall Rating' },
+  { key: 'difficulty', pill: 'Adjusted Difficulty', heading: 'Adjusted Difficulty', col: 'Difficulty' },
+  { key: 'workload', pill: 'Adjusted Workload', heading: 'Adjusted Workload', col: 'Workload' },
   { key: 'reviews', pill: 'Eval Count', heading: 'Eval Count', col: 'Evals' },
   { key: 'variation', pill: 'Rating Variation', heading: 'Rating Variation', col: 'Variation' },
 ]
@@ -40,6 +43,27 @@ const MIN_EVAL_OPTIONS = [
 ]
 
 const DEFAULT_MIN_EVALS = 10
+
+// Credits filter (classes only). Default 3; 'all' clears it. Value matches the
+// string stored in the URL ('1'..'4' or 'all').
+const DEFAULT_CREDITS = 3
+const CREDIT_OPTIONS = [
+  { label: '1 Credit', value: '1' },
+  { label: '2 Credits', value: '2' },
+  { label: '3 Credits', value: '3' },
+  { label: '4 Credits', value: '4' },
+  { label: 'All Credits', value: 'all' },
+]
+
+// Student-level filter (classes only). Default Undergraduate; 'all' (the "Both"
+// option) clears it. 'Undergraduate'/'Graduate' match that level plus
+// cross-listed 'Both' sections server-side.
+const DEFAULT_STUDENT_LEVEL = 'Undergraduate'
+const STUDENT_LEVEL_OPTIONS = [
+  { label: 'Undergraduate', value: 'Undergraduate' },
+  { label: 'Graduate', value: 'Graduate' },
+  { label: 'Both', value: 'all' },
+]
 
 const PAGE_SIZE = 25
 
@@ -65,13 +89,32 @@ export default function RankingsPage() {
   const minEvals = Number(searchParams.get('minEvals') ?? DEFAULT_MIN_EVALS)
   const metric = METRICS.find((m) => m.key === metricKey)!
 
+  // Credits filter applies to the classes ranking only. Absent = default 3;
+  // 'all' = no filter (null); otherwise the number.
+  const credits: number | null =
+    searchParams.get('credits') === null
+      ? DEFAULT_CREDITS
+      : searchParams.get('credits') === 'all'
+      ? null
+      : Number(searchParams.get('credits'))
+
+  // Student-level filter (classes only). Absent = default Undergraduate; 'all' =
+  // no filter (the "Both" option).
+  const studentLevel = searchParams.get('studentLevel') ?? DEFAULT_STUDENT_LEVEL
+
   const [items, setItems] = useState<RankItem[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
 
-  const apiUrl = (offset: number) =>
-    api(`/api/rankings/${entity.key}?metric=${metricKey}&order=${order}&minEvals=${minEvals}&limit=${PAGE_SIZE}&offset=${offset}`)
+  const apiUrl = (offset: number) => {
+    const creditsQ = entity.key === 'classes' && credits !== null ? `&credits=${credits}` : ''
+    const levelQ =
+      entity.key === 'classes' && studentLevel !== 'all' ? `&studentLevel=${studentLevel}` : ''
+    return api(
+      `/api/rankings/${entity.key}?metric=${metricKey}&order=${order}&minEvals=${minEvals}${creditsQ}${levelQ}&limit=${PAGE_SIZE}&offset=${offset}`
+    )
+  }
 
   // Refetch from scratch whenever the entity or any ranking control changes.
   useEffect(() => {
@@ -90,7 +133,7 @@ export default function RankingsPage() {
     return () => {
       active = false
     }
-  }, [entity.key, metricKey, order, minEvals])
+  }, [entity.key, metricKey, order, minEvals, credits, studentLevel])
 
   const loadMore = () => {
     setLoadingMore(true)
@@ -192,6 +235,32 @@ export default function RankingsPage() {
               </div>
             </div>
             <div className="rankings__controls">
+              {entity.key === 'classes' && (
+                <select
+                  className="rankings__select"
+                  value={credits === null ? 'all' : String(credits)}
+                  onChange={(e) => setParam('credits', e.target.value)}
+                >
+                  {CREDIT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {entity.key === 'classes' && (
+                <select
+                  className="rankings__select"
+                  value={studentLevel}
+                  onChange={(e) => setParam('studentLevel', e.target.value)}
+                >
+                  {STUDENT_LEVEL_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 className="rankings__select"
                 value={minEvals}

@@ -11,7 +11,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "sync": "tsx scripts/syncDatabase.ts"
+    "sync:classes": "tsx scripts/syncClasses.ts",
+    "sync:evals": "tsx scripts/syncEvals.ts",
+    "sync": "npm run sync:classes && npm run sync:evals"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
