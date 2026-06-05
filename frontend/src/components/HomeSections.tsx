@@ -31,7 +31,7 @@ const explore = [
   {
     title: 'Easiest Core Classes',
     text: 'Find requirements that students report as manageable.',
-    to: '/explore?sort=challenging&order=asc',
+    to: '/explore?core=__any__&sort=challenging&order=asc',
   },
   {
     title: 'Lightest Workload',
@@ -60,7 +60,10 @@ export default function HomeSections() {
           <div className="home-head">
             <h2 className="section__title">I need to fulfill a requirement</h2>
             <span className="home-head__divider" />
-            <button className="home-head__link" onClick={() => navigate('/explore')}>
+            <button
+              className="home-head__link"
+              onClick={() => navigate('/explore?core=__any__')}
+            >
               View All Cores <ArrowRight size={16} />
             </button>
           </div>

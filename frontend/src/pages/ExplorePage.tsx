@@ -60,6 +60,10 @@ const minReviewOptions = [
 
 const PAGE_SIZE = 25
 
+// Sentinel core value: "any course that fulfills at least one core requirement".
+// Handled by the explore_courses RPC (migration 0019).
+const ANY_CORE = '__any__'
+
 // Maps the UI sort key to the explore_courses RPC's p_sort value.
 const sortFieldParam: Record<SortKey, string> = {
   rating: 'rating',
@@ -245,7 +249,10 @@ export default function ExplorePage() {
     onRemove: () => updateParams({ term: null }),
   })
   if (filters.core)
-    chips.push({ label: `${filters.core} Core`, onRemove: () => updateParams({ core: null }) })
+    chips.push({
+      label: filters.core === ANY_CORE ? 'Any Core' : `${filters.core} Core`,
+      onRemove: () => updateParams({ core: null }),
+    })
   if (filters.college) {
     const c = options?.colleges.find((o) => o.value === filters.college)
     chips.push({ label: c?.label ?? filters.college, onRemove: () => updateParams({ college: null }) })
@@ -271,7 +278,9 @@ export default function ExplorePage() {
     })
 
   const heading = filters.core
-    ? `${filters.core} Core Courses`
+    ? filters.core === ANY_CORE
+      ? 'Any Core Courses'
+      : `${filters.core} Core Courses`
     : filters.department
     ? `${filters.department} Courses`
     : 'Courses'
@@ -293,6 +302,7 @@ export default function ExplorePage() {
               onChange={(e) => updateParams({ core: e.target.value })}
             >
               <option value="">Core Requirement</option>
+              <option value={ANY_CORE}>Any Core</option>
               {options?.cores.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -408,6 +418,27 @@ export default function ExplorePage() {
               onClick={() => applyPreset({ ...emptyFilters, core: 'Social Science' }, 'challenging', 'asc')}
             >
               Easiest Social Science
+            </button>
+            <button
+              type="button"
+              className="pill"
+              onClick={() => applyPreset({ ...emptyFilters, core: 'Natural Science' }, 'hours', 'asc')}
+            >
+              Lightest Natural Science
+            </button>
+            <button
+              type="button"
+              className="pill"
+              onClick={() => applyPreset({ ...emptyFilters, department: 'Finance' }, 'rating', 'desc')}
+            >
+              Top-Rated Finance
+            </button>
+            <button
+              type="button"
+              className="pill"
+              onClick={() => applyPreset({ ...emptyFilters, department: 'Computer Science' }, 'rating', 'desc')}
+            >
+              Top-Rated CS
             </button>
           </div>
         </div>
