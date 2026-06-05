@@ -51,6 +51,78 @@ export async function searchCourses(
   });
 }
 
+// GET /api/search?q=...
+// Multi-entity autocomplete: courses, professors, departments, and schools.
+export async function search(req: Request, res: Response): Promise<void> {
+  const q = req.query.q;
+  const empty = { courses: [], professors: [], departments: [], schools: [] };
+
+  if (typeof q !== "string" || !q.trim()) {
+    res.json(empty);
+    return;
+  }
+
+  const term = q.trim();
+
+  const [courseResult, profResult, deptResult] = await Promise.all([
+    supabase
+      .from("courses")
+      .select("course_code, title")
+      .or(`course_code.ilike.%${term}%,title.ilike.%${term}%`)
+      .order("course_code")
+      .limit(5),
+    supabase
+      .from("instructors")
+      .select("id, canonical_name")
+      .ilike("canonical_name", `%${term}%`)
+      .order("canonical_name")
+      .limit(5),
+    supabase
+      .from("departments")
+      .select("code, name")
+      .or(`name.ilike.%${term}%,code.ilike.%${term}%`)
+      .not("name", "is", null)
+      .order("name")
+      .limit(5),
+  ]);
+
+  const error = courseResult.error ?? profResult.error ?? deptResult.error;
+  if (error) {
+    console.error("Search failed:", error.message);
+    res.status(500).json({ error: "Search failed." });
+    return;
+  }
+
+  const courses = (courseResult.data ?? []).map((c) => ({
+    courseCode: c.course_code,
+    title: c.title,
+  }));
+
+  const professors = (profResult.data ?? []).map((p) => ({
+    id: p.id,
+    name: p.canonical_name,
+  }));
+
+  // Dedupe departments by code (codes can repeat across colleges).
+  const deptByCode = new Map<string, string>();
+  for (const d of deptResult.data ?? []) {
+    if (!deptByCode.has(d.code)) deptByCode.set(d.code, d.name as string);
+  }
+  const departments = [...deptByCode].map(([code, name]) => ({ code, name }));
+
+  const needle = term.toLowerCase();
+  const schools = Object.entries(COLLEGE_LABELS)
+    .filter(
+      ([code, label]) =>
+        code.toLowerCase().includes(needle) ||
+        label.toLowerCase().includes(needle)
+    )
+    .slice(0, 5)
+    .map(([code, name]) => ({ code, name }));
+
+  res.json({ courses, professors, departments, schools });
+}
+
 // Readable names for BC's college codes.
 export const COLLEGE_LABELS: Record<string, string> = {
   MCAS: "Arts & Sciences",

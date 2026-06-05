@@ -3,9 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { api } from '../lib/api'
 
-type CourseSuggestion = { courseCode: string; title: string | null }
+type SearchResults = {
+  courses: { courseCode: string; title: string | null }[]
+  professors: { id: number; name: string }[]
+  departments: { code: string; name: string }[]
+  schools: { code: string; name: string }[]
+}
 
-const trending = ['CSCI 1101', 'ECON 1101']
+const emptyResults: SearchResults = {
+  courses: [],
+  professors: [],
+  departments: [],
+  schools: [],
+}
+
+const trending = ['CSCI 1101', 'ECON 1101', 'MATH 1100', 'PHIL 1070', 'ENGL 1010']
 
 // Course codes are stored without spaces (e.g. "CSCI1101").
 const toCourseCode = (raw: string) => raw.trim().toUpperCase().replace(/\s+/g, '')
@@ -16,14 +28,18 @@ export default function SearchBar({
   variant?: 'hero' | 'nav'
 }) {
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<CourseSuggestion[]>([])
+  const [results, setResults] = useState<SearchResults>(emptyResults)
   const debounce = useRef<ReturnType<typeof setTimeout>>()
   const navigate = useNavigate()
 
+  function go(path: string) {
+    setResults(emptyResults)
+    navigate(path)
+  }
+
   function goToCourse(courseCode: string) {
     if (!courseCode) return
-    setSuggestions([])
-    navigate('/courses/' + encodeURIComponent(courseCode))
+    go('/courses/' + encodeURIComponent(courseCode))
   }
 
   function onInput(value: string) {
@@ -31,27 +47,78 @@ export default function SearchBar({
     clearTimeout(debounce.current)
     const term = value.trim()
     if (!term) {
-      setSuggestions([])
+      setResults(emptyResults)
       return
     }
     debounce.current = setTimeout(async () => {
-      const res = await fetch(api('/api/courses/search?q=' + encodeURIComponent(term)))
-      const data: { courses: CourseSuggestion[] } = await res.json()
-      setSuggestions(data.courses)
+      const res = await fetch(api('/api/search?q=' + encodeURIComponent(term)))
+      const data: SearchResults = await res.json()
+      setResults(data)
     }, 200)
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    goToCourse(toCourseCode(query))
+    // Prefer the first live suggestion (courses first), else treat the input as
+    // a course code.
+    if (results.courses[0]) goToCourse(results.courses[0].courseCode)
+    else if (results.professors[0]) go('/professors/' + results.professors[0].id)
+    else if (results.departments[0])
+      go('/departments/' + encodeURIComponent(results.departments[0].code))
+    else if (results.schools[0])
+      go('/schools/' + encodeURIComponent(results.schools[0].code))
+    else goToCourse(toCourseCode(query))
   }
 
-  const suggestionList = suggestions.length > 0 && (
+  const hasResults =
+    results.courses.length > 0 ||
+    results.professors.length > 0 ||
+    results.departments.length > 0 ||
+    results.schools.length > 0
+
+  const suggestionList = hasResults && (
     <ul className="searchbar__suggestions">
-      {suggestions.map((c) => (
-        <li key={c.courseCode} onClick={() => goToCourse(c.courseCode)}>
+      {results.courses.length > 0 && (
+        <li className="searchbar__group">Courses</li>
+      )}
+      {results.courses.map((c) => (
+        <li key={'c-' + c.courseCode} onClick={() => goToCourse(c.courseCode)}>
           <span className="code">{c.courseCode}</span>
           <span>{c.title}</span>
+        </li>
+      ))}
+
+      {results.professors.length > 0 && (
+        <li className="searchbar__group">Professors</li>
+      )}
+      {results.professors.map((p) => (
+        <li key={'p-' + p.id} onClick={() => go('/professors/' + p.id)}>
+          <span>{p.name}</span>
+        </li>
+      ))}
+
+      {results.departments.length > 0 && (
+        <li className="searchbar__group">Departments</li>
+      )}
+      {results.departments.map((d) => (
+        <li
+          key={'d-' + d.code}
+          onClick={() => go('/departments/' + encodeURIComponent(d.code))}
+        >
+          <span className="code">{d.code}</span>
+          <span>{d.name}</span>
+        </li>
+      ))}
+
+      {results.schools.length > 0 && (
+        <li className="searchbar__group">Schools</li>
+      )}
+      {results.schools.map((s) => (
+        <li
+          key={'s-' + s.code}
+          onClick={() => go('/schools/' + encodeURIComponent(s.code))}
+        >
+          <span>{s.name}</span>
         </li>
       ))}
     </ul>
@@ -66,7 +133,7 @@ export default function SearchBar({
             className="searchbar__input"
             type="text"
             value={query}
-            placeholder="Search courses..."
+            placeholder="Search..."
             autoComplete="off"
             onChange={(e) => onInput(e.target.value)}
           />
@@ -84,7 +151,7 @@ export default function SearchBar({
           className="searchbar__input"
           type="text"
           value={query}
-          placeholder="Search by course code, professor, or topic..."
+          placeholder="Search by course, professor, department, or school..."
           autoComplete="off"
           onChange={(e) => onInput(e.target.value)}
         />
@@ -96,7 +163,7 @@ export default function SearchBar({
       {suggestionList}
 
       <div className="trending">
-        <span className="trending__label">Trending:</span>
+        <span className="trending__label">Try searching:</span>
         {trending.map((t) => (
           <button
             key={t}
