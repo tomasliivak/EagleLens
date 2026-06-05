@@ -5,6 +5,7 @@ import CoursePage from './pages/CoursePage'
 import RankingsPage from './pages/RankingsPage'
 import ExplorePage from './pages/ExplorePage'
 import PlaceholderPage from './pages/PlaceholderPage'
+import ProfessorPage from './pages/ProfessorPage'
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
         <Route path="/rankings" element={<Navigate to="/rankings/classes" replace />} />
         <Route path="/rankings/:entity" element={<RankingsPage />} />
         <Route path="/courses/:courseCode" element={<CoursePage />} />
-        <Route path="/professors/:id" element={<PlaceholderPage title="Professor" />} />
+        <Route path="/professors/:id" element={<ProfessorPage />} />
         <Route path="/departments/:code" element={<PlaceholderPage title="Department" />} />
         <Route path="/schools/:code" element={<PlaceholderPage title="School" />} />
         <Route path="/privacy" element={<PlaceholderPage title="Privacy Policy" />} />

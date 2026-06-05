@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import coursesRouter from "./routes/coursesRoutes.ts";
 import rankingsRouter from "./routes/rankingsRoutes.ts";
 import searchRouter from "./routes/searchRoutes.ts";
+import professorsRouter from "./routes/professorsRoutes.ts";
 import { apiLimiter } from "./middleware/rateLimit.ts";
 import cors, { type CorsOptions } from 'cors'
 
@@ -46,6 +47,7 @@ app.get('/api/hello', (_req: Request, res: Response) => {
 app.use("/api/courses", apiLimiter, coursesRouter);
 app.use("/api/rankings", apiLimiter, rankingsRouter);
 app.use("/api/search", apiLimiter, searchRouter);
+app.use("/api/professors", apiLimiter, professorsRouter);
 
 // Last-resort error handler so a thrown/rejected request returns a clean 500
 // instead of leaking internals. Controllers still handle their own known errors.
