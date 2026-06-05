@@ -13,6 +13,7 @@ import { COURSE_DATA_URLS, fetchBCCourses } from "../src/fetchCourses.ts";
 import { normalizeCourseSection } from "../src/normalizeCourses.ts";
 import type { OfferedSection, RawBCCourseSection } from "../src/types.ts";
 import {
+  refreshCaches,
   selectAll,
   upsertChunked,
   upsertInstructorsAndMap,
@@ -154,6 +155,7 @@ async function loadBcCatalog(): Promise<void> {
 async function main() {
   const started = Date.now();
   await loadBcCatalog();
+  await refreshCaches();
   console.log(
     `Classes sync complete in ${Math.round((Date.now() - started) / 1000)}s.`
   );

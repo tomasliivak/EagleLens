@@ -124,6 +124,17 @@ export async function selectAll<T>(
   return out;
 }
 
+// Rebuild the precomputed ranking/explore cache tables from current DB state.
+// Cheap and idempotent; run at the end of each sync so the cached rows reflect
+// the latest catalog + evaluations.
+export async function refreshCaches(): Promise<void> {
+  console.log("Refreshing ranking/explore caches…");
+  const { error } = await supabase.rpc("refresh_caches");
+  if (error) {
+    throw new Error(`refresh_caches failed: ${error.message}`);
+  }
+}
+
 // Upsert every name, then read the full table back to map name -> id.
 export async function upsertInstructorsAndMap(
   names: Iterable<string>

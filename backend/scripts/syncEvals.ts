@@ -23,6 +23,7 @@ import {
   AVALANCHE_CONCURRENCY,
   SYNC_LIMIT,
   mapWithConcurrency,
+  refreshCaches,
   selectAll,
   upsertChunked,
   upsertInstructorsAndMap,
@@ -203,6 +204,7 @@ async function main() {
 
   const drilldowns = await fetchDrilldowns(summaries.values());
   await loadEvaluations(summaries, drilldowns, instructorIdByName);
+  await refreshCaches();
 
   console.log(
     `Evals sync complete in ${Math.round((Date.now() - started) / 1000)}s.`
