@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
+import { api } from '../lib/api'
 
 type CourseSuggestion = { courseCode: string; title: string | null }
 
-const trending = ['CSCI 1101', 'ECON 1101', 'Digital Humanities']
+const trending = ['CSCI 1101', 'ECON 1101']
 
 // Course codes are stored without spaces (e.g. "CSCI1101").
 const toCourseCode = (raw: string) => raw.trim().toUpperCase().replace(/\s+/g, '')
@@ -34,7 +35,7 @@ export default function SearchBar({
       return
     }
     debounce.current = setTimeout(async () => {
-      const res = await fetch('/api/courses/search?q=' + encodeURIComponent(term))
+      const res = await fetch(api('/api/courses/search?q=' + encodeURIComponent(term)))
       const data: { courses: CourseSuggestion[] } = await res.json()
       setSuggestions(data.courses)
     }, 200)

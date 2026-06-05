@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
+import { api } from '../lib/api'
 
 type RankItem = {
   id: string
@@ -24,7 +25,7 @@ const ENTITIES: { key: EntityKey; tab: string; noun: string; primaryCol: string;
 ]
 
 const METRICS: { key: string; pill: string; heading: string; col: string }[] = [
-  { key: 'rating', pill: 'Overall Rating', heading: 'Overall Rating', col: 'Rating' },
+  { key: 'rating', pill: 'Overall Rating', heading: 'Overall Rating', col: 'Overall Rating' },
   { key: 'difficulty', pill: 'Difficulty', heading: 'Difficulty', col: 'Difficulty' },
   { key: 'workload', pill: 'Workload', heading: 'Workload', col: 'Workload' },
   { key: 'reviews', pill: 'Eval Count', heading: 'Eval Count', col: 'Evals' },
@@ -70,7 +71,7 @@ export default function RankingsPage() {
   const [hasMore, setHasMore] = useState(false)
 
   const apiUrl = (offset: number) =>
-    `/api/rankings/${entity.key}?metric=${metricKey}&order=${order}&minEvals=${minEvals}&limit=${PAGE_SIZE}&offset=${offset}`
+    api(`/api/rankings/${entity.key}?metric=${metricKey}&order=${order}&minEvals=${minEvals}&limit=${PAGE_SIZE}&offset=${offset}`)
 
   // Refetch from scratch whenever the entity or any ranking control changes.
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function RankingsPage() {
                   <th>{entity.primaryCol}</th>
                   {entity.secondaryCol && <th>{entity.secondaryCol}</th>}
                   <th>{metric.col}</th>
-                  <th>Workload</th>
+                  <th>{metricKey === 'rating' ? 'Workload' : 'Overall Rating'}</th>
                   <th>Evaluations</th>
                   <th className="rank-table__action">Action</th>
                 </tr>
@@ -238,7 +239,9 @@ export default function RankingsPage() {
                     </td>
                     {entity.secondaryCol && <td className="rank-secondary">{item.secondary ?? '—'}</td>}
                     <td>{metricCell(item)}</td>
-                    <td className="rank-secondary">{workloadLabel(item.workload)}</td>
+                    <td className="rank-secondary">
+                      {metricKey === 'rating' ? workloadLabel(item.workload) : fmt2(item.rating)}
+                    </td>
                     <td className="rank-secondary">{item.reviewCount.toLocaleString()}</td>
                     <td className="rank-table__action">
                       <button type="button" className="rank-view" onClick={() => navigate(hrefFor(item))}>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
 import {
   Star,
   SlidersHorizontal,
@@ -19,6 +20,7 @@ type ExploreCourse = {
   difficulty: number | null
   avgWorkload: number | null
   coreRequirements: string[]
+  source: 'current' | 'historical' | 'limited'
 }
 
 type FilterOptions = {
@@ -121,7 +123,7 @@ export default function ExplorePage() {
   }
 
   useEffect(() => {
-    fetch('/api/courses/filters')
+    fetch(api('/api/courses/filters'))
       .then((r) => r.json())
       .then((data: FilterOptions) => setOptions(data))
       .catch(() => {})
@@ -137,7 +139,7 @@ export default function ExplorePage() {
     }
     let active = true
     setLoading(true)
-    fetch('/api/courses/explore?' + buildParams(applied, 0).toString())
+    fetch(api('/api/courses/explore?' + buildParams(applied, 0).toString()))
       .then((r) => r.json())
       .then((data: { courses: ExploreCourse[]; termLabel: string; hasMore: boolean }) => {
         if (!active) return
@@ -157,7 +159,7 @@ export default function ExplorePage() {
   const loadMore = () => {
     if (!applied) return
     setLoadingMore(true)
-    fetch('/api/courses/explore?' + buildParams(applied, courses.length).toString())
+    fetch(api('/api/courses/explore?' + buildParams(applied, courses.length).toString()))
       .then((r) => r.json())
       .then((data: { courses: ExploreCourse[]; hasMore: boolean }) => {
         setCourses((prev) => [...prev, ...data.courses])
@@ -409,12 +411,18 @@ export default function ExplorePage() {
                         Best current section: Prof. {course.bestInstructorName}
                       </div>
                     )}
+                    {course.source === 'historical' && (
+                      <div className="ecard__source-note">Based on past sections</div>
+                    )}
                   </div>
                   <div className="ecard__rating">
                     <div className="ecard__rating-num">
                       {fmt(course.avgRating)} <Star size={16} fill="currentColor" />
                     </div>
                     <div className="ecard__rating-cap">{course.reviewCount} evals</div>
+                    {course.source === 'limited' && (
+                      <span className="ecard__limited">Limited data</span>
+                    )}
                   </div>
                 </div>
 

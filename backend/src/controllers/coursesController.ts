@@ -237,6 +237,7 @@ type ExploreRow = {
   difficulty: string | null;
   avg_workload: string | null;
   core_requirements: string[] | null;
+  source: "current" | "historical" | "limited";
 };
 
 // "2026FALL" -> "Fall 2026", "2026SUMM" -> "Summer 2026", etc.
@@ -310,6 +311,7 @@ export async function exploreCourses(
     difficulty: num(row.difficulty),
     avgWorkload: num(row.avg_workload),
     coreRequirements: row.core_requirements ?? [],
+    source: row.source,
   }));
 
   res.json({

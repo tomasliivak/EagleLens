@@ -7,6 +7,9 @@
     "frontend",
     "backend"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently -n frontend,backend -c blue,green \"npm run dev -w frontend\" \"npm run dev -w backend\"",
     "build": "npm run build -w frontend && npm run build -w backend",

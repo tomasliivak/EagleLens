@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { api } from '../lib/api'
 import {
   Star,
   SlidersHorizontal,
@@ -141,7 +142,7 @@ export default function CoursePage() {
     let active = true
     setLoading(true)
     setNotFound(false)
-    fetch('/api/courses/' + encodeURIComponent(courseCode))
+    fetch(api('/api/courses/' + encodeURIComponent(courseCode)))
       .then((res) => {
         if (res.status === 404) {
           setNotFound(true)
