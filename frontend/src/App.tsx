@@ -6,6 +6,8 @@ import RankingsPage from './pages/RankingsPage'
 import ExplorePage from './pages/ExplorePage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import ProfessorPage from './pages/ProfessorPage'
+import DepartmentPage from './pages/DepartmentPage'
+import SchoolPage from './pages/SchoolPage'
 
 function App() {
   return (
@@ -17,8 +19,8 @@ function App() {
         <Route path="/rankings/:entity" element={<RankingsPage />} />
         <Route path="/courses/:courseCode" element={<CoursePage />} />
         <Route path="/professors/:id" element={<ProfessorPage />} />
-        <Route path="/departments/:code" element={<PlaceholderPage title="Department" />} />
-        <Route path="/schools/:code" element={<PlaceholderPage title="School" />} />
+        <Route path="/departments/:code" element={<DepartmentPage />} />
+        <Route path="/schools/:code" element={<SchoolPage />} />
         <Route path="/privacy" element={<PlaceholderPage title="Privacy Policy" />} />
         <Route path="/terms" element={<PlaceholderPage title="Terms of Service" />} />
         <Route path="/contact" element={<PlaceholderPage title="Contact Support" />} />
