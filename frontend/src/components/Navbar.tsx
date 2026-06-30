@@ -1,5 +1,4 @@
 import { NavLink, Link, useLocation } from 'react-router-dom'
-import { Bell, UserCircle2 } from 'lucide-react'
 import SearchBar from './SearchBar'
 
 const links = [
@@ -32,10 +31,6 @@ export default function Navbar() {
           ))}
         </div>
         {showSearch && <SearchBar variant="nav" />}
-        <div className="navbar__actions">
-          <Bell size={22} />
-          <UserCircle2 size={24} />
-        </div>
       </div>
     </nav>
   )

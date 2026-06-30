@@ -74,10 +74,11 @@ button {
 }
 
 .navbar__logo {
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--maroon);
   letter-spacing: -0.01em;
+  padding-bottom: 4px;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
@@ -93,7 +94,7 @@ button {
 }
 
 .navbar__link {
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   color: #4a4a4a;
   padding-bottom: 2px;
   border-bottom: 2px solid transparent;
@@ -108,21 +109,6 @@ button {
 .navbar__link.active {
   color: var(--maroon);
   border-bottom: 2px solid var(--maroon);
-}
-
-.navbar__actions {
-  display: flex;
-  gap: 18px;
-  color: var(--maroon);
-}
-
-.navbar__actions svg {
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-
-.navbar__actions svg:hover {
-  opacity: 0.65;
 }
 
 /* ---------- Hero ---------- */
@@ -1951,16 +1937,13 @@ button {
     gap: 12px;
   }
   .navbar__logo {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
   }
   .navbar__links {
     gap: 14px;
   }
   .navbar__link {
-    font-size: 0.85rem;
-  }
-  .navbar__actions {
-    gap: 12px;
+    font-size: 0.95rem;
   }
 
   /* Home grids */
