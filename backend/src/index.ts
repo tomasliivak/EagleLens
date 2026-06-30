@@ -24,11 +24,21 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+// The production frontend domains, always allowed regardless of ALLOWED_ORIGINS.
+const defaultAllowedOrigins = [
+  "https://www.eaglelens.org",
+  "https://eaglelens.org",
+];
+
 const corsOptions: CorsOptions = {
   origin(origin, callback) {
     // No Origin header = same-origin / curl / health checks — always allow.
     if (!origin || allowedOrigins.length === 0) return callback(null, true);
-    if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+    if (
+      allowedOrigins.includes(origin) ||
+      defaultAllowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app")
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} not allowed by CORS`));
