@@ -25,5 +25,8 @@ yarn-error.log*
 *.tsbuildinfo
 coverage/
 
+# Generated at build time (frontend prebuild) — see frontend/scripts/generate-sitemap.mjs
+frontend/public/sitemap.xml
+
 # Large API sample fixtures (regenerate with backend/scripts/fetchSample.ts)
 backend/data/*.sample.json
