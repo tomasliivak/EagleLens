@@ -521,28 +521,12 @@ button {
   margin-top: 4px;
 }
 
-.footer__links {
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-
-.footer__links a {
-  color: #6b6b6b;
-  font-size: 0.9rem;
-}
-
-.footer__links a:hover {
-  color: var(--maroon);
-}
-
 .footer__disclaimer {
-  margin-top: 4px;
-  padding: 20px 24px 28px;
-  border-top: 1px solid #ddd7d0;
+  max-width: 720px;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.6;
+  text-align: right;
 }
 
 /* ---------- Inner pages ---------- */

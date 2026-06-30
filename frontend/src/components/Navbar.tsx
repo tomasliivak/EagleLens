@@ -15,7 +15,7 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="container--fluid navbar__inner">
         <Link to="/" className="navbar__logo">
-          PlanUrBC
+          Eagle Lens
         </Link>
         <div className="navbar__links">
           {links.map((l) => (
