@@ -25,6 +25,18 @@ body {
   color: var(--ink);
 }
 
+/* Sticky footer: fill the viewport so the footer sits at the bottom even when
+   the page content is short. */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.layout__main {
+  flex: 1 0 auto;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -486,6 +498,7 @@ button {
 .footer {
   background: #ece8e3;
   border-top: 1px solid #e0dbd4;
+  flex-shrink: 0;
 }
 
 .footer__inner {

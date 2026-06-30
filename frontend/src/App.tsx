@@ -8,6 +8,7 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import ProfessorPage from './pages/ProfessorPage'
 import DepartmentPage from './pages/DepartmentPage'
 import SchoolPage from './pages/SchoolPage'
+import ErrorPage from './pages/ErrorPage'
 
 function App() {
   return (
@@ -25,6 +26,8 @@ function App() {
         <Route path="/terms" element={<PlaceholderPage title="Terms of Service" />} />
         <Route path="/contact" element={<PlaceholderPage title="Contact Support" />} />
         <Route path="/about" element={<PlaceholderPage title="About" />} />
+        {/* Unknown URLs fall through to the error page. */}
+        <Route path="*" element={<ErrorPage />} />
       </Route>
     </Routes>
   )
