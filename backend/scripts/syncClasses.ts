@@ -13,8 +13,10 @@ import { COURSE_DATA_URLS, fetchBCCourses } from "../src/fetchCourses.ts";
 import { normalizeCourseSection } from "../src/normalizeCourses.ts";
 import type { OfferedSection, RawBCCourseSection } from "../src/types.ts";
 import {
+  deleteByIdsChunked,
   refreshCaches,
   selectAll,
+  supabase,
   upsertChunked,
   upsertInstructorsAndMap,
 } from "./syncShared.ts";
@@ -113,14 +115,28 @@ async function loadBcCatalog(): Promise<void> {
   }
   await upsertChunked("sections", sectionRows, "external_id,term");
 
-  const sectionIdByKey = new Map<string, number>();
-  for (const row of await selectAll<{
+  const existingSections = await selectAll<{
     id: number;
     external_id: string;
     term: string;
-  }>("sections", "id,external_id,term")) {
+  }>("sections", "id,external_id,term");
+  const sectionIdByKey = new Map<string, number>();
+  for (const row of existingSections) {
     sectionIdByKey.set(`${row.external_id}::${row.term}`, row.id);
   }
+
+  // Reconcile (A): the feed is the source of truth, so drop sections it no longer
+  // lists. Scoped to the terms this pull covers — historical terms the feed has
+  // dropped are left alone. Cascades to section_instructors (ON DELETE CASCADE).
+  const pulledTerms = new Set(sections.map((s) => s.term));
+  const staleSectionIds = existingSections
+    .filter(
+      (row) =>
+        pulledTerms.has(row.term) &&
+        !sectionSeen.has(`${row.external_id}::${row.term}`)
+    )
+    .map((row) => row.id);
+  await deleteByIdsChunked("sections", staleSectionIds);
 
   // Section <-> instructor.
   const siSeen = new Set<string>();
@@ -147,8 +163,44 @@ async function loadBcCatalog(): Promise<void> {
     true
   );
 
+  // Reconcile (B): remove instructor links the feed no longer lists (prof swaps /
+  // drops) on surviving current-term sections. Cancelled sections' links were
+  // already removed by the cascade in (A). Only sections whose roster actually
+  // changed are touched, so this is a handful of deletes.
+  const pulledSectionIds = new Set<number>();
+  for (const key of sectionSeen) {
+    const id = sectionIdByKey.get(key);
+    if (id) pulledSectionIds.add(id);
+  }
+  const staleLinksBySection = new Map<number, number[]>();
+  for (const link of await selectAll<{
+    section_id: number;
+    instructor_id: number;
+  }>("section_instructors", "section_id,instructor_id")) {
+    if (!pulledSectionIds.has(link.section_id)) continue;
+    if (siSeen.has(`${link.section_id}::${link.instructor_id}`)) continue;
+    const list = staleLinksBySection.get(link.section_id) ?? [];
+    list.push(link.instructor_id);
+    staleLinksBySection.set(link.section_id, list);
+  }
+  let removedLinks = 0;
+  for (const [sectionId, instructorIds] of staleLinksBySection) {
+    const { error } = await supabase
+      .from("section_instructors")
+      .delete()
+      .eq("section_id", sectionId)
+      .in("instructor_id", instructorIds);
+    if (error) {
+      throw new Error(`Delete from section_instructors failed: ${error.message}`);
+    }
+    removedLinks += instructorIds.length;
+  }
+
   console.log(
     `  Catalog loaded: ${courseCodeSet.size} courses, ${instructorIdByName.size} instructors, ${sectionRows.length} sections.`
+  );
+  console.log(
+    `  Reconciled: removed ${staleSectionIds.length} stale sections, ${removedLinks} stale instructor links.`
   );
 }
 

@@ -66,21 +66,6 @@ const difficultyLabel = (v: number | null) => {
   return 'Easy'
 }
 
-// "2026FALL" -> "Fall 2026"
-const SEASONS: Record<string, string> = {
-  FALL: 'Fall',
-  SPRING: 'Spring',
-  SUMM: 'Summer',
-  SUMMER: 'Summer',
-  WINTER: 'Winter',
-}
-function termLabel(term: string): string {
-  const m = term.match(/^(\d{4})(.+)$/)
-  if (!m) return term
-  const [, year, season] = m
-  return `${SEASONS[season.toUpperCase()] ?? season} ${year}`
-}
-
 // Sort keys map to the explore_courses RPC's p_sort values.
 type SortKey = 'rating' | 'difficulty' | 'workload'
 type SortDir = 'desc' | 'asc'
@@ -123,6 +108,16 @@ export default function DepartmentPage() {
   const [hasMore, setHasMore] = useState(false)
   const [sort, setSort] = useState<SortKey>('rating')
   const [dir, setDir] = useState<SortDir>('desc')
+  // Semester selector. terms[0] is the latest (server default); '' = use default.
+  const [terms, setTerms] = useState<{ value: string; label: string }[]>([])
+  const [selectedTerm, setSelectedTerm] = useState('')
+
+  useEffect(() => {
+    fetch(api('/api/courses/filters'))
+      .then((r) => r.json())
+      .then((d: { terms: { value: string; label: string }[] }) => setTerms(d.terms))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -149,7 +144,7 @@ export default function DepartmentPage() {
   }, [code])
 
   const name = data?.department.name
-  const term = data?.term ?? '2026FALL'
+  const term = selectedTerm || data?.term || ''
 
   const classesUrl = (offset: number) =>
     api(
@@ -185,7 +180,7 @@ export default function DepartmentPage() {
       active = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, sort, dir])
+  }, [name, sort, dir, selectedTerm])
 
   const loadMore = () => {
     setLoadingMore(true)
@@ -220,6 +215,8 @@ export default function DepartmentPage() {
   }
 
   const d = data.department
+  const currentTermLabel =
+    terms.find((t) => t.value === (selectedTerm || terms[0]?.value))?.label ?? ''
 
   return (
     <main className="course">
@@ -292,7 +289,9 @@ export default function DepartmentPage() {
             <div className="explore__results-head">
               <h2 className="section__title course__h2 prof-teaching-head">
                 Top Classes This Semester{' '}
-                <span className="prof-teaching-head__term">({termLabel(term)})</span>
+                {currentTermLabel && (
+                  <span className="prof-teaching-head__term">({currentTermLabel})</span>
+                )}
               </h2>
               <div className="sort">
                 <SlidersHorizontal size={18} />
@@ -317,6 +316,16 @@ export default function DepartmentPage() {
                   )}
                   {dir === 'desc' ? 'Highest' : 'Lowest'}
                 </button>
+                <select
+                  value={selectedTerm || terms[0]?.value || ''}
+                  onChange={(e) => setSelectedTerm(e.target.value)}
+                >
+                  {terms.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

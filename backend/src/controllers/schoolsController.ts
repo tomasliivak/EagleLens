@@ -1,8 +1,7 @@
 import type { Request, Response } from "express";
 import { supabase } from "../lib/supabase.ts";
 import { COLLEGE_LABELS } from "./coursesController.ts";
-
-const DEFAULT_TERM = "2026FALL";
+import { getDefaultTerm } from "../lib/terms.ts";
 
 // numeric columns come back from PostgREST as strings.
 const num = (v: string | null) => (v === null ? null : Number(v));
@@ -78,7 +77,7 @@ export async function getSchool(req: Request, res: Response): Promise<void> {
       courseCount: header?.course_count ?? 0,
       latestSemester: header?.latest_semester ?? null,
     },
-    term: DEFAULT_TERM,
+    term: await getDefaultTerm(),
     topProfessors,
   });
 }

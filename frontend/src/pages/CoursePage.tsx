@@ -137,12 +137,28 @@ export default function CoursePage() {
   const [sort, setSort] = useState<SortKey>('rating')
   const [dir, setDir] = useState<SortDir>('desc')
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  // Semester selector. terms[0] is the latest (server default); '' = use default.
+  const [terms, setTerms] = useState<{ value: string; label: string }[]>([])
+  const [selectedTerm, setSelectedTerm] = useState('')
+
+  useEffect(() => {
+    fetch(api('/api/courses/filters'))
+      .then((r) => r.json())
+      .then((d: { terms: { value: string; label: string }[] }) => setTerms(d.terms))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     let active = true
     setLoading(true)
     setNotFound(false)
-    fetch(api('/api/courses/' + encodeURIComponent(courseCode)))
+    fetch(
+      api(
+        '/api/courses/' +
+          encodeURIComponent(courseCode) +
+          (selectedTerm ? '?term=' + encodeURIComponent(selectedTerm) : '')
+      )
+    )
       .then((res) => {
         if (res.status === 404) {
           setNotFound(true)
@@ -161,7 +177,7 @@ export default function CoursePage() {
     return () => {
       active = false
     }
-  }, [courseCode])
+  }, [courseCode, selectedTerm])
 
   // Collapse one professor's section rows into a single card.
   const professors = useMemo(() => {
@@ -238,6 +254,9 @@ export default function CoursePage() {
     )
   }
 
+  const currentTermLabel =
+    terms.find((t) => t.value === (selectedTerm || terms[0]?.value))?.label ?? ''
+
   const eyebrow = [
     course.courseCode,
     [course.college, course.coreRequirements.length ? 'Core' : null]
@@ -276,7 +295,12 @@ export default function CoursePage() {
 
         {/* Sections */}
         <div className="course__instructors-head">
-          <h2 className="section__title course__h2">Sections &amp; Instructors</h2>
+          <h2 className="section__title course__h2">
+            Sections &amp; Instructors{' '}
+            {currentTermLabel && (
+              <span className="prof-teaching-head__term">({currentTermLabel})</span>
+            )}
+          </h2>
           <div className="sort">
             <SlidersHorizontal size={18} />
             <span>Sort by</span>
@@ -300,6 +324,16 @@ export default function CoursePage() {
               )}
               {dir === 'desc' ? 'Highest' : 'Lowest'}
             </button>
+            <select
+              value={selectedTerm || terms[0]?.value || ''}
+              onChange={(e) => setSelectedTerm(e.target.value)}
+            >
+              {terms.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

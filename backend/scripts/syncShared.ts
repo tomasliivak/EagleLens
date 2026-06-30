@@ -103,6 +103,18 @@ export async function upsertChunked(
   }
 }
 
+export async function deleteByIdsChunked(
+  table: string,
+  ids: number[]
+): Promise<void> {
+  for (const part of chunk(ids, UPSERT_CHUNK)) {
+    const { error } = await supabase.from(table).delete().in("id", part);
+    if (error) {
+      throw new Error(`Delete from ${table} failed: ${error.message}`);
+    }
+  }
+}
+
 // Supabase caps a single select at 1000 rows, so page through with .range().
 export async function selectAll<T>(
   table: string,

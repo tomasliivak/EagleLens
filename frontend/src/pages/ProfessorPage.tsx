@@ -9,6 +9,7 @@ import {
   MessageSquare,
   ArrowRight,
   MapPin,
+  Calendar,
 } from 'lucide-react'
 import { api } from '../lib/api'
 
@@ -67,21 +68,6 @@ const difficultyLabel = (v: number | null) => {
 // A course with fewer than this many evals (or none) is flagged "Limited data".
 const LIMITED_EVALS = 5
 
-// "2026FALL" -> "Fall 2026"
-const SEASONS: Record<string, string> = {
-  FALL: 'Fall',
-  SPRING: 'Spring',
-  SUMM: 'Summer',
-  SUMMER: 'Summer',
-  WINTER: 'Winter',
-}
-function termLabel(term: string): string {
-  const m = term.match(/^(\d{4})(.+)$/)
-  if (!m) return term
-  const [, year, season] = m
-  return `${SEASONS[season.toUpperCase()] ?? season} ${year}`
-}
-
 // meeting_text packs location + days + time (see CoursePage.parseMeeting).
 function parseMeeting(text: string | null): { location: string; daysTime: string } {
   if (!text) return { location: 'TBA', daysTime: 'TBA' }
@@ -127,12 +113,28 @@ export default function ProfessorPage() {
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  // Semester selector. terms[0] is the latest (server default); '' = use default.
+  const [terms, setTerms] = useState<{ value: string; label: string }[]>([])
+  const [selectedTerm, setSelectedTerm] = useState('')
+
+  useEffect(() => {
+    fetch(api('/api/courses/filters'))
+      .then((r) => r.json())
+      .then((d: { terms: { value: string; label: string }[] }) => setTerms(d.terms))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     let active = true
     setLoading(true)
     setNotFound(false)
-    fetch(api('/api/professors/' + encodeURIComponent(id)))
+    fetch(
+      api(
+        '/api/professors/' +
+          encodeURIComponent(id) +
+          (selectedTerm ? '?term=' + encodeURIComponent(selectedTerm) : '')
+      )
+    )
       .then((res) => {
         if (res.status === 404) {
           setNotFound(true)
@@ -150,7 +152,7 @@ export default function ProfessorPage() {
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, selectedTerm])
 
   // Collapse the per-section rows of the current term into one card per course.
   const currentCourses = useMemo(() => {
@@ -211,6 +213,8 @@ export default function ProfessorPage() {
   }
 
   const p = data.professor
+  const currentTermLabel =
+    terms.find((t) => t.value === (selectedTerm || terms[0]?.value))?.label ?? ''
 
   return (
     <main className="course">
@@ -283,10 +287,28 @@ export default function ProfessorPage() {
         {/* Body */}
         <div className="prof-body">
           <div className="prof-body__main">
-            <h2 className="section__title course__h2 prof-teaching-head">
-              Teaching This Semester{' '}
-              <span className="prof-teaching-head__term">({termLabel(data.term)})</span>
-            </h2>
+            <div className="explore__results-head">
+              <h2 className="section__title course__h2 prof-teaching-head">
+                Teaching This Semester{' '}
+                {currentTermLabel && (
+                  <span className="prof-teaching-head__term">({currentTermLabel})</span>
+                )}
+              </h2>
+              <div className="sort">
+                <Calendar size={18} />
+                <span>Semester</span>
+                <select
+                  value={selectedTerm || terms[0]?.value || ''}
+                  onChange={(e) => setSelectedTerm(e.target.value)}
+                >
+                  {terms.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {currentCourses.length === 0 && (
               <p className="placeholder-note">

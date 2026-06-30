@@ -99,10 +99,10 @@ const studentLevelOptions: { label: string; value: string }[] = [
   { label: 'Both', value: 'all' },
 ]
 
-const DEFAULT_TERM = '2026FALL'
-
+// Empty term = "use the latest available semester" — the server resolves it and
+// the dropdown selects the latest (options.terms is ordered latest-first).
 const emptyFilters: Filters = {
-  term: DEFAULT_TERM,
+  term: '',
   core: '',
   college: '',
   department: '',
@@ -134,8 +134,12 @@ export default function ExplorePage() {
 
   // The URL is the source of truth — every control reads from here and writes
   // back, so filters are shareable and back/forward-aware (like RankingsPage).
+  // The latest available term (terms come back latest-first). Empty until the
+  // filter options load, in which case the server picks the latest.
+  const defaultTerm = options?.terms[0]?.value ?? ''
+
   const filters: Filters = {
-    term: searchParams.get('term') ?? DEFAULT_TERM,
+    term: searchParams.get('term') ?? '',
     core: searchParams.get('core') ?? '',
     college: searchParams.get('college') ?? '',
     department: searchParams.get('department') ?? '',
@@ -167,7 +171,8 @@ export default function ExplorePage() {
 
   // Build the explore query string for a given page offset.
   const buildParams = (f: Filters, offset: number) => {
-    const params = new URLSearchParams({ term: f.term })
+    const params = new URLSearchParams()
+    if (f.term) params.set('term', f.term)
     if (f.core) params.set('core', f.core)
     if (f.college) params.set('college', f.college)
     if (f.department) params.set('department', f.department)
@@ -227,7 +232,7 @@ export default function ExplorePage() {
   // Apply a preset: replace the whole query with a fresh set (omitting defaults).
   const applyPreset = (f: Filters, s: SortKey, d: SortDir) => {
     const next = new URLSearchParams()
-    if (f.term !== DEFAULT_TERM) next.set('term', f.term)
+    if (f.term && f.term !== defaultTerm) next.set('term', f.term)
     if (f.core) next.set('core', f.core)
     if (f.college) next.set('college', f.college)
     if (f.department) next.set('department', f.department)
@@ -338,8 +343,8 @@ export default function ExplorePage() {
 
             <select
               className="filters__select"
-              value={filters.term}
-              onChange={(e) => updateParams({ term: e.target.value === DEFAULT_TERM ? null : e.target.value })}
+              value={filters.term || defaultTerm}
+              onChange={(e) => updateParams({ term: e.target.value === defaultTerm ? null : e.target.value })}
             >
               {options?.terms.map((t) => (
                 <option key={t.value} value={t.value}>

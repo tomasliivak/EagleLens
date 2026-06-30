@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { supabase } from "../lib/supabase.ts";
-
-const DEFAULT_TERM = "2026FALL";
+import { getDefaultTerm } from "../lib/terms.ts";
 
 // numeric columns come back from PostgREST as strings; counts as numbers.
 type SectionRow = {
@@ -167,7 +166,7 @@ export async function getCourse(req: Request, res: Response): Promise<void> {
   const term =
     typeof req.query.term === "string" && req.query.term.trim()
       ? req.query.term.trim()
-      : DEFAULT_TERM;
+      : await getDefaultTerm();
 
   const [courseResult, coreResult, instructorResult] = await Promise.all([
     supabase
@@ -269,7 +268,7 @@ export async function getCourseProfessors(
   const term =
     typeof req.query.term === "string" && req.query.term.trim()
       ? req.query.term.trim()
-      : DEFAULT_TERM;
+      : await getDefaultTerm();
 
   const { data, error } = await supabase.rpc("get_course_professors", {
     p_course_code: courseCode,
@@ -344,7 +343,7 @@ export async function exploreCourses(
     return Number.isFinite(n) ? n : null;
   };
 
-  const term = str(req.query.term) ?? DEFAULT_TERM;
+  const term = str(req.query.term) ?? (await getDefaultTerm());
 
   const sortKeys = ["rating", "difficulty", "workload"];
   const sort = sortKeys.includes(str(req.query.sort) ?? "")
