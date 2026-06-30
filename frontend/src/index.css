@@ -1896,3 +1896,166 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Phone layout (additive only; desktop/tablet unchanged) ---------- */
+@media (max-width: 600px) {
+  /* Containers & vertical rhythm */
+  .container,
+  .container--fluid {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .hero {
+    padding: 40px 0 48px;
+  }
+  .section {
+    padding: 36px 0 44px;
+  }
+  .page {
+    padding: 36px 0 56px;
+  }
+  .course {
+    padding: 28px 0 56px;
+  }
+  .explore {
+    padding: 28px 0 56px;
+  }
+  .rankings {
+    padding: 28px 0 56px;
+  }
+
+  /* Headings that never scaled down */
+  .hero__title,
+  .explore__title {
+    font-size: 1.9rem;
+  }
+  .course__title {
+    font-size: 1.85rem;
+  }
+  .rankings__title {
+    font-size: 1.7rem;
+  }
+  .page__heading {
+    font-size: 1.55rem;
+  }
+  .section__title {
+    font-size: 1.4rem;
+  }
+  .home-cta__title {
+    font-size: 1.35rem;
+  }
+
+  /* Navbar: shrink so logo + links + icons fit one row (nav search already hidden) */
+  .navbar__inner {
+    height: 56px;
+    gap: 12px;
+  }
+  .navbar__logo {
+    font-size: 1.05rem;
+  }
+  .navbar__links {
+    gap: 14px;
+  }
+  .navbar__link {
+    font-size: 0.85rem;
+  }
+  .navbar__actions {
+    gap: 12px;
+  }
+
+  /* Home grids */
+  .req-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .explore-strip,
+  .home-cta__grid {
+    grid-template-columns: 1fr;
+  }
+  .home-cta__card {
+    padding: 24px;
+  }
+  .trending {
+    flex-wrap: wrap;
+  }
+
+  /* Explore */
+  .filters__grid {
+    grid-template-columns: 1fr;
+  }
+  .filters__popular {
+    flex-wrap: wrap;
+  }
+  .ecard {
+    padding: 18px;
+  }
+
+  /* Control rows (sort + semester + direction) wrap instead of overflowing */
+  .sort {
+    flex-wrap: wrap;
+  }
+
+  /* Course page stats + sections table */
+  .course__stats {
+    flex-wrap: wrap;
+  }
+  .stat-box {
+    min-width: 0;
+    flex: 1 1 28%;
+    padding: 12px;
+  }
+  .pcard__sections {
+    overflow-x: auto;
+  }
+
+  /* Professor / Department / School course cards stack cleanly */
+  .prof-course {
+    padding: 16px 18px;
+  }
+  .prof-course__info {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .prof-course__metrics {
+    border-left: none;
+    padding-left: 0;
+    gap: 16px;
+  }
+  .prof-overall {
+    padding: 16px 22px;
+  }
+
+  /* Rankings tabs + metric pills wrap */
+  .rtabs {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .rpills {
+    flex-wrap: wrap;
+  }
+
+  /* Footer stacks: disclaimer reads left-aligned full width */
+  .footer__inner {
+    gap: 12px;
+    padding: 24px 16px;
+  }
+  .footer__disclaimer {
+    text-align: left;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .req-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat-box {
+    flex-basis: 45%;
+  }
+  .hero__title,
+  .explore__title {
+    font-size: 1.65rem;
+  }
+  .course__title {
+    font-size: 1.6rem;
+  }
+}
