@@ -322,9 +322,7 @@ function normalizeDrilldownRow(params: {
     courseIntellectuallyChallenging: parseOptionalNumber(
       row["courseintellectuallychallenging(c)"]
     ),
-    effortAverageHoursWeekly: parseOptionalNumber(
-      row["effortavghoursweeklyc"]
-    ),
+    effortAverageHoursWeekly: parseEffortHours(row["effortavghoursweeklyc"]),
     attendanceNecessary: parseOptionalNumber(row["attendancenecessary(c)"]),
     assignmentsHelpful: parseOptionalNumber(row["assignmentshelpful(c)"]),
 
@@ -368,4 +366,27 @@ function parseOptionalNumber(value: string | undefined): number | null {
   const parsed = Number(value);
 
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+// "Effort avg hours weekly" is a 1-5 bucket. When responses are multimodal,
+// Avalanche reports several buckets as a comma-separated string ("2, 3",
+// "3, 4, 5"), sometimes with a stray scrape artifact ("3, 4, 2005"). Keep only
+// tokens in the valid 1-5 range (drops artifacts) and return their average, so a
+// single representative workload rating still feeds workloadLabel. A clean single
+// value ("3.00") passes through unchanged; "N/A"/empty/no-valid-tokens -> null.
+function parseEffortHours(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const buckets = value
+    .split(",")
+    .map((token) => Number(token.trim()))
+    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 5);
+
+  if (buckets.length === 0) {
+    return null;
+  }
+
+  return buckets.reduce((sum, n) => sum + n, 0) / buckets.length;
 }

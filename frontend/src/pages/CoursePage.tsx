@@ -257,6 +257,11 @@ export default function CoursePage() {
   const currentTermLabel =
     terms.find((t) => t.value === (selectedTerm || terms[0]?.value))?.label ?? ''
 
+  const hasRatingData =
+    course.avgRating !== null ||
+    course.difficulty !== null ||
+    course.avgWorkload !== null
+
   const eyebrow = [
     course.courseCode,
     [course.college, course.coreRequirements.length ? 'Core' : null]
@@ -275,21 +280,28 @@ export default function CoursePage() {
 
         <div className="course__overview">
           <p className="course__desc">{course.description}</p>
-          <div className="course__stats">
-            <div className="stat-box">
-              <div className="stat-box__num">{fmt(course.avgRating)}</div>
-              <div className="stat-box__label">Avg. Rating</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-box__num">{fmt(course.difficulty)}</div>
-              <div className="stat-box__label">Difficulty</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-box__num stat-box__num--word">
-                {workloadLabel(course.avgWorkload)}
+          <div className="course__stats-side">
+            <div className="course__stats">
+              <div className="stat-box">
+                <div className="stat-box__num">{fmt(course.avgRating)}</div>
+                <div className="stat-box__label">Avg. Rating</div>
               </div>
-              <div className="stat-box__label">Workload</div>
+              <div className="stat-box">
+                <div className="stat-box__num">{fmt(course.difficulty)}</div>
+                <div className="stat-box__label">Difficulty</div>
+              </div>
+              <div className="stat-box">
+                <div className="stat-box__num stat-box__num--word">
+                  {workloadLabel(course.avgWorkload)}
+                </div>
+                <div className="stat-box__label">Workload</div>
+              </div>
             </div>
+            {!hasRatingData && (
+              <p className="course__stats-note">
+                No student evaluation data for this course yet.
+              </p>
+            )}
           </div>
         </div>
 

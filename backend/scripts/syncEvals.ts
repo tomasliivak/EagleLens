@@ -74,6 +74,22 @@ async function fetchSummaries(
 // Phase 2 — Drilldown backfill (one request per course+instructor pair)
 // ---------------------------------------------------------------------------
 
+// The summary and drilldown come from different Avalanche endpoints, so their
+// semester strings can drift (extra/internal whitespace, casing). Normalize the
+// semester before using it in the match key so minor format differences don't
+// silently leave the drilldown metrics null.
+function normalizeSemester(semester: string): string {
+  return semester.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function drilldownKey(
+  fullCourseCode: string,
+  instructorName: string,
+  semester: string
+): string {
+  return `${fullCourseCode}::${instructorName}::${normalizeSemester(semester)}`;
+}
+
 async function fetchDrilldowns(
   summaries: Iterable<EvaluationSummary>
 ): Promise<Map<string, EvaluationDrilldown>> {
@@ -93,6 +109,8 @@ async function fetchDrilldowns(
 
   const byKey = new Map<string, EvaluationDrilldown>();
   let done = 0;
+  let emptyPairs = 0;
+  let failedPairs = 0;
   await mapWithConcurrency(pairList, AVALANCHE_CONCURRENCY, async (pair) => {
     done++;
     if (done % 250 === 0) {
@@ -100,10 +118,12 @@ async function fetchDrilldowns(
     }
     try {
       const rows = await withRetry(() => fetchEvaluationDrilldownRows(pair));
+      if (rows.length === 0) emptyPairs++;
       for (const d of rows) {
-        byKey.set(`${d.fullCourseCode}::${d.instructorName}::${d.semester}`, d);
+        byKey.set(drilldownKey(d.fullCourseCode, d.instructorName, d.semester), d);
       }
     } catch (error) {
+      failedPairs++;
       console.warn(
         `  drilldown failed for ${pair.fullCourseCode} / ${pair.instructorName}:`,
         (error as Error).message
@@ -111,6 +131,9 @@ async function fetchDrilldowns(
     }
   });
 
+  console.log(
+    `  drilldown done: ${byKey.size} rows; ${emptyPairs} pairs returned no rows; ${failedPairs} pairs errored.`
+  );
   return byKey;
 }
 
@@ -124,14 +147,16 @@ async function loadEvaluations(
   instructorIdByName: Map<string, number>
 ): Promise<void> {
   const rows: Record<string, unknown>[] = [];
+  let unmatched = 0;
 
   for (const s of summaries.values()) {
     const instructorId = instructorIdByName.get(s.instructorName);
     if (!instructorId) continue;
 
     const d = drilldowns.get(
-      `${s.fullCourseCode}::${s.instructorName}::${s.semester}`
+      drilldownKey(s.fullCourseCode, s.instructorName, s.semester)
     );
+    if (!d) unmatched++;
 
     rows.push({
       full_course_code: s.fullCourseCode,
@@ -158,6 +183,9 @@ async function loadEvaluations(
     });
   }
 
+  console.log(
+    `  ${unmatched}/${rows.length} evaluation rows had no matching drilldown (metrics left null).`
+  );
   await upsertChunked(
     "evaluations",
     rows,

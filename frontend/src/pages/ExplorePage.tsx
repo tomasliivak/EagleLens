@@ -282,13 +282,23 @@ export default function ExplorePage() {
       onRemove: () => updateParams({ maxWorkload: null }),
     })
 
-  const heading = filters.core
+  // The subject of the heading reflects the active core/department filter…
+  const headingSubject = filters.core
     ? filters.core === ANY_CORE
-      ? 'Any Core Courses'
+      ? 'Core Courses'
       : `${filters.core} Core Courses`
     : filters.department
     ? `${filters.department} Courses`
     : 'Courses'
+  // …and the prefix reflects the current sort + direction, e.g.
+  // "Highest Rated ___", "Lowest Difficulty ___", "Lowest Workload ___".
+  // Difficulty reads more naturally as Easiest/Hardest than Lowest/Highest Difficulty.
+  const heading =
+    sort === 'challenging'
+      ? `${dir === 'desc' ? 'Hardest' : 'Easiest'} ${headingSubject}`
+      : `${dir === 'desc' ? 'Highest' : 'Lowest'} ${
+          sort === 'rating' ? 'Rated' : 'Workload'
+        } ${headingSubject}`
 
   return (
     <main className="explore">
