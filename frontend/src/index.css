@@ -1213,6 +1213,12 @@ button {
   font-size: 1rem;
 }
 
+.ecard__metric-suffix {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .ecard__tags {
   display: flex;
   gap: 8px;

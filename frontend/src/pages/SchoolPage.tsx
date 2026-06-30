@@ -9,6 +9,7 @@ import {
   ArrowUpNarrowWide,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { difficultyLabel } from '../lib/difficulty'
 
 type School = {
   code: string
@@ -55,14 +56,6 @@ const workloadLabel = (v: number | null) => {
   if (v >= 3.5) return 'Heavy'
   if (v >= 2.3) return 'Moderate'
   return 'Light'
-}
-
-// Difficulty rating (1–5) → short label, mirroring the workload thresholds.
-const difficultyLabel = (v: number | null) => {
-  if (v === null) return '—'
-  if (v >= 3.5) return 'Hard'
-  if (v >= 2.3) return 'Mod'
-  return 'Easy'
 }
 
 // Sort keys map to the explore_courses RPC's p_sort values.

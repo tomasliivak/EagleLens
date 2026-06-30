@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { difficultyLabel } from '../lib/difficulty'
 import {
   Star,
   SlidersHorizontal,
@@ -561,6 +562,7 @@ export default function ExplorePage() {
                             />
                           </div>
                           <span className="ecard__metric-val">{fmt(course.difficulty)}</span>
+                          <span className="ecard__metric-suffix">({difficultyLabel(course.difficulty)})</span>
                         </div>
                       </div>
                       <div className="ecard__metric">

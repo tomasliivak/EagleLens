@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { difficultyLabel } from '../lib/difficulty'
 import {
   Star,
   SlidersHorizontal,
@@ -287,7 +288,10 @@ export default function CoursePage() {
                 <div className="stat-box__label">Avg. Rating</div>
               </div>
               <div className="stat-box">
-                <div className="stat-box__num">{fmt(course.difficulty)}</div>
+                <div className="stat-box__num">
+                  {fmt(course.difficulty)}{' '}
+                  <span className="stat-box__suffix">({difficultyLabel(course.difficulty)})</span>
+                </div>
                 <div className="stat-box__label">Difficulty</div>
               </div>
               <div className="stat-box">
