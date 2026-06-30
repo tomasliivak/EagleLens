@@ -45,7 +45,7 @@ type SortDir = 'desc' | 'asc'
 
 const sortOptions: { key: SortKey; label: string; field: keyof ExploreCourse }[] = [
   { key: 'rating', label: 'Adjusted Rating', field: 'avgRating' },
-  { key: 'challenging', label: 'Intellectually Challenging', field: 'difficulty' },
+  { key: 'challenging', label: 'Difficulty', field: 'difficulty' },
   { key: 'hours', label: 'Hours / Week', field: 'avgWorkload' },
 ]
 

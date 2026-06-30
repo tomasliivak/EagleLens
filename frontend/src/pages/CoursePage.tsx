@@ -59,7 +59,7 @@ type SortDir = 'desc' | 'asc'
 
 const sortOptions: { key: SortKey; label: string; field: keyof Professor }[] = [
   { key: 'rating', label: 'Rating', field: 'overallRating' },
-  { key: 'challenging', label: 'Intellectually Challenging', field: 'intellectuallyChallenging' },
+  { key: 'challenging', label: 'Difficulty', field: 'intellectuallyChallenging' },
   { key: 'hours', label: 'Hours / Week', field: 'avgHoursWeekly' },
 ]
 
