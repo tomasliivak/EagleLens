@@ -84,8 +84,16 @@ export default function RankingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const entity = (ENTITIES.find((e) => e.key === entityParam) ?? ENTITIES[0])
-  const metricKey = METRICS.find((m) => m.key === searchParams.get('metric'))?.key ?? 'rating'
-  const order = searchParams.get('order') === 'asc' ? 'asc' : 'desc'
+
+  // Professors hide the difficulty/workload metrics and can't reverse the order
+  // (always highest-first). Other entities keep the full set of controls.
+  const visibleMetrics =
+    entity.key === 'professors'
+      ? METRICS.filter((m) => m.key !== 'difficulty' && m.key !== 'workload')
+      : METRICS
+  const requestedMetric = METRICS.find((m) => m.key === searchParams.get('metric'))?.key ?? 'rating'
+  const metricKey = visibleMetrics.some((m) => m.key === requestedMetric) ? requestedMetric : 'rating'
+  const order = entity.key === 'professors' ? 'desc' : searchParams.get('order') === 'asc' ? 'asc' : 'desc'
   const minEvals = Number(searchParams.get('minEvals') ?? DEFAULT_MIN_EVALS)
   const metric = METRICS.find((m) => m.key === metricKey)!
 
@@ -211,7 +219,7 @@ export default function RankingsPage() {
 
         {/* Metric pills */}
         <div className="rpills">
-          {METRICS.map((m) => (
+          {visibleMetrics.map((m) => (
             <button
               key={m.key}
               type="button"
@@ -272,14 +280,16 @@ export default function RankingsPage() {
                   </option>
                 ))}
               </select>
-              <select
-                className="rankings__select"
-                value={order}
-                onChange={(e) => setParam('order', e.target.value)}
-              >
-                <option value="desc">Order: Highest to Lowest</option>
-                <option value="asc">Order: Lowest to Highest</option>
-              </select>
+              {entity.key !== 'professors' && (
+                <select
+                  className="rankings__select"
+                  value={order}
+                  onChange={(e) => setParam('order', e.target.value)}
+                >
+                  <option value="desc">Order: Highest to Lowest</option>
+                  <option value="asc">Order: Lowest to Highest</option>
+                </select>
+              )}
             </div>
           </div>
 
