@@ -8,10 +8,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-
-const SITE_URL = (process.env.SITE_URL || "https://eaglelens.org").replace(/\/+$/, "");
-const SUPABASE_URL = (process.env.SUPABASE_URL || "https://jziyrjavclicsjbealml.supabase.co").replace(/\/+$/, "");
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+import { SITE_URL, SUPABASE_KEY, SCHOOL_CODES, fetchRankRows } from "./lib/rankData.mjs";
 
 // Static, content-rich routes (placeholders like /privacy are intentionally excluded).
 const STATIC_PATHS = [
@@ -23,40 +20,12 @@ const STATIC_PATHS = [
   { path: "/rankings/schools", priority: "0.8", changefreq: "weekly" },
 ];
 
-// Schools are a fixed set of BC college codes (no DB query needed).
-const SCHOOL_CODES = ["MCAS", "CSOM", "CSON", "LSOE", "LAW", "STM", "SSW", "MCBC"];
-
-const PAGE_SIZE = 1000;
-
-// Page through a rank_* RPC and collect one id field per row.
+// Collect one id field per row from a rank_* RPC.
 async function fetchIds(fn, idField) {
-  const ids = [];
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        p_metric: "rating",
-        p_order: "desc",
-        p_min_evals: 0,
-        p_limit: PAGE_SIZE,
-        p_offset: offset,
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`${fn} -> HTTP ${res.status} ${await res.text()}`);
-    }
-    const rows = await res.json();
-    for (const row of rows) {
-      if (row[idField] !== null && row[idField] !== undefined) ids.push(String(row[idField]));
-    }
-    if (rows.length < PAGE_SIZE) break;
-  }
-  return ids;
+  const rows = await fetchRankRows(fn);
+  return rows
+    .filter((row) => row[idField] !== null && row[idField] !== undefined)
+    .map((row) => String(row[idField]));
 }
 
 function urlEntry(path, { priority, changefreq, lastmod }) {
