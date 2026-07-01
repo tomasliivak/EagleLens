@@ -6,7 +6,7 @@ export default function HomePage() {
     <>
       <section className="hero">
         <div className="container">
-          <h1 className="hero__title">Find better classes at BC.</h1>
+          <h1 className="hero__title">Find better classes at Boston College.</h1>
           <p className="hero__subtitle">
             Search courses, professors, departments, and schools to compare
             ratings, workload, and difficulty.
