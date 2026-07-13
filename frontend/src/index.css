@@ -545,7 +545,7 @@ button {
 /* ---------- Course page ---------- */
 .course {
   min-height: 60vh;
-  padding: 44px 0 80px;
+  padding: 36px 0 64px;
 }
 
 .course__eyebrow {
@@ -561,7 +561,7 @@ button {
   font-size: 2.8rem;
   font-weight: 700;
   color: var(--maroon-dark);
-  margin: 0 0 22px;
+  margin: 0 0 18px;
   letter-spacing: -0.01em;
 }
 
@@ -569,8 +569,8 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 40px;
-  margin-bottom: 44px;
+  gap: 32px;
+  margin-bottom: 30px;
 }
 
 .course__desc {
@@ -605,7 +605,7 @@ button {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px 22px;
+  padding: 13px 18px;
   text-align: center;
   min-width: 92px;
 }
@@ -634,7 +634,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .course__h2 {
@@ -654,7 +654,7 @@ button {
   font-size: 0.92rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   background: #fff;
   color: var(--maroon);
   font-weight: 600;
@@ -671,7 +671,7 @@ button {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 7px 12px;
+  padding: 6px 11px;
 }
 
 .sort__dir:hover {
@@ -683,16 +683,16 @@ button {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   overflow: hidden;
 }
 
 .pcard__main {
   position: relative;
   display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 28px;
-  padding: 26px 28px;
+  grid-template-columns: 132px 1fr;
+  gap: 22px;
+  padding: 22px 24px;
 }
 
 .pcard__left {
@@ -703,16 +703,16 @@ button {
 }
 
 .avatar {
-  width: 84px;
-  height: 84px;
+  width: 66px;
+  height: 66px;
   border-radius: 12px;
   background: linear-gradient(155deg, var(--maroon) 0%, var(--maroon-dark) 100%);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   display: grid;
   place-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .stars {
@@ -730,10 +730,10 @@ button {
 }
 
 .pcard__overall {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: var(--maroon-dark);
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .pcard__overall-cap {
@@ -747,7 +747,7 @@ button {
 
 .pcard__name {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--maroon);
 }
@@ -755,31 +755,31 @@ button {
 .pcard__sub {
   color: #6b6b6b;
   font-size: 0.9rem;
-  margin: 4px 0 2px;
+  margin: 3px 0 2px;
 }
 
 .pcard__sub--course {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .pcard__metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px 48px;
-  max-width: 780px;
+  gap: 14px 40px;
+  max-width: 720px;
 }
 
 .metric-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .metric__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .metric__head > span:first-child {
@@ -799,7 +799,7 @@ button {
 }
 
 .metric__bar {
-  height: 8px;
+  height: 7px;
   background: #efeae3;
   border-radius: 6px;
   overflow: hidden;
@@ -831,22 +831,22 @@ button {
 
 .pcard__rank {
   position: absolute;
-  top: 22px;
-  right: 24px;
+  top: 18px;
+  right: 22px;
   background: #f3eee8;
   border: 1px solid var(--border);
   color: #6b6b6b;
   font-size: 0.78rem;
   font-weight: 600;
   border-radius: 16px;
-  padding: 5px 12px;
+  padding: 4px 10px;
 }
 
 /* Expanded sections panel */
 .pcard__sections {
   background: #f7f4f0;
   border-top: 1px solid var(--border);
-  padding: 18px 28px 22px;
+  padding: 14px 24px 18px;
 }
 
 .pcard__sections-title {
@@ -876,7 +876,7 @@ button {
 }
 
 .sections-table td {
-  padding: 14px 12px;
+  padding: 11px 12px;
   font-size: 0.92rem;
   color: #333;
 }
@@ -2010,6 +2010,9 @@ button {
     min-width: 0;
     flex: 1 1 28%;
     padding: 12px;
+  }
+  .pcard__main {
+    padding: 20px 16px;
   }
   .pcard__sections {
     overflow-x: auto;
