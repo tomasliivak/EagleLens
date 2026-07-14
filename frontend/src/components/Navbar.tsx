@@ -1,5 +1,7 @@
 import { NavLink, Link, useLocation } from 'react-router-dom'
+import { User } from 'lucide-react'
 import SearchBar from './SearchBar'
+import { useAuth } from '../lib/auth'
 
 const links = [
   { to: '/explore', label: 'Explore Classes', end: false },
@@ -9,6 +11,7 @@ const links = [
 export default function Navbar() {
   // The homepage has its own large hero search, so skip the compact one there.
   const showSearch = useLocation().pathname !== '/'
+  const { session } = useAuth()
 
   return (
     <nav className="navbar">
@@ -31,6 +34,13 @@ export default function Navbar() {
           ))}
         </div>
         {showSearch && <SearchBar variant="nav" />}
+        <Link
+          to="/account"
+          className="navbar__user"
+          aria-label={session ? 'Account' : 'Sign in'}
+        >
+          <User size={19} />
+        </Link>
       </div>
     </nav>
   )

@@ -176,7 +176,7 @@ export async function getCourse(req: Request, res: Response): Promise<void> {
       .maybeSingle(),
     supabase
       .from("course_core_requirements")
-      .select("core_requirements(name)")
+      .select("core_requirements(code)")
       .eq("course_code", courseCode),
     supabase.rpc("get_course_instructors", {
       p_course_code: courseCode,
@@ -208,8 +208,8 @@ export async function getCourse(req: Request, res: Response): Promise<void> {
     : null;
 
   const coreRequirements = (coreResult.data ?? [])
-    .map((r) => one(r.core_requirements as { name: string | null } | { name: string | null }[] | null)?.name)
-    .filter((name): name is string => Boolean(name));
+    .map((r) => one(r.core_requirements as { code: string | null } | { code: string | null }[] | null)?.code)
+    .filter((code): code is string => Boolean(code));
 
   // One entry per section (instructors repeat across their sections).
   const sections = ((instructorResult.data ?? []) as SectionRatingRow[]).map(
@@ -257,6 +257,84 @@ export async function getCourse(req: Request, res: Response): Promise<void> {
   });
 }
 
+type RatingsRow = {
+  course_code: string;
+  course_overall: string | null;
+  course_intellectually_challenging: string | null;
+  effort_avg_hours_weekly: string | null;
+  evaluation_count: number | null;
+};
+
+// GET /api/courses/by-codes?codes=CSCI1101,PSYC1010
+// Batch course lookup (title/department/school + aggregate ratings) for a
+// caller-supplied list of course codes. Used by the account page's Saved
+// Courses table — not a search endpoint, codes come from the caller.
+export async function getCoursesByCodes(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const codesParam = req.query.codes;
+  const codes =
+    typeof codesParam === "string"
+      ? [...new Set(codesParam.split(",").map((c) => c.trim()).filter(Boolean))]
+      : [];
+
+  if (codes.length === 0) {
+    res.json({ courses: [] });
+    return;
+  }
+
+  const [coursesResult, ratingsResult] = await Promise.all([
+    supabase
+      .from("courses")
+      .select("course_code, title, departments(name, college)")
+      .in("course_code", codes),
+    supabase
+      .from("course_ratings")
+      .select(
+        "course_code, course_overall, course_intellectually_challenging, effort_avg_hours_weekly, evaluation_count"
+      )
+      .in("course_code", codes),
+  ]);
+
+  const error = coursesResult.error ?? ratingsResult.error;
+  if (error) {
+    console.error("Batch course lookup failed:", error.message);
+    res.status(500).json({ error: "Batch course lookup failed." });
+    return;
+  }
+
+  const ratingsByCode = new Map<string, RatingsRow>();
+  for (const row of (ratingsResult.data ?? []) as RatingsRow[]) {
+    ratingsByCode.set(row.course_code, row);
+  }
+
+  const courses = (coursesResult.data ?? []).map((c) => {
+    const department = one(c.departments) as {
+      name: string | null;
+      college: string | null;
+    } | null;
+    const collegeCode = department?.college ?? null;
+    const college = collegeCode
+      ? COLLEGE_LABELS[collegeCode] ?? collegeCode
+      : null;
+    const ratings = ratingsByCode.get(c.course_code);
+
+    return {
+      courseCode: c.course_code,
+      title: c.title,
+      department: department?.name ?? null,
+      college,
+      avgRating: ratings ? num(ratings.course_overall) : null,
+      difficulty: ratings ? num(ratings.course_intellectually_challenging) : null,
+      avgWorkload: ratings ? num(ratings.effort_avg_hours_weekly) : null,
+      evaluationCount: ratings?.evaluation_count ?? 0,
+    };
+  });
+
+  res.json({ courses });
+}
+
 // GET /api/courses/:courseCode/professors?term=2026FALL
 // Every section of the course in the term (repeat professors included), with
 // meeting text and ratings, sorted by overall rating (desc).
@@ -294,6 +372,41 @@ export async function getCourseProfessors(
       overallEvaluations: row.overall_evaluations,
       courseRating: row.course_rating,
       courseEvaluations: row.course_evaluations,
+    })),
+  });
+}
+
+type ReviewProfessorRow = {
+  instructor_id: number;
+  instructor_name: string;
+  is_current: boolean;
+};
+
+// GET /api/courses/:courseCode/review-professors
+// Every professor who has ever taught the course, for the "Leave a Review"
+// form's professor picker — current instructors (teaching it this term)
+// flagged separately from past ones.
+export async function getCourseReviewProfessors(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const courseCode = req.params.courseCode;
+
+  const { data, error } = await supabase.rpc("get_course_review_professors", {
+    p_course_code: courseCode,
+  });
+
+  if (error) {
+    console.error("Review professor lookup failed:", error.message);
+    res.status(500).json({ error: "Review professor lookup failed." });
+    return;
+  }
+
+  res.json({
+    professors: ((data ?? []) as ReviewProfessorRow[]).map((row) => ({
+      id: row.instructor_id,
+      name: row.instructor_name,
+      isCurrent: row.is_current,
     })),
   });
 }

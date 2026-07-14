@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Star,
   BadgeCheck,
@@ -10,8 +10,10 @@ import {
   ArrowRight,
   MapPin,
   Calendar,
+  ChevronRight,
 } from 'lucide-react'
 import { api } from '../lib/api'
+import { supabase } from '../lib/supabase'
 import { difficultyLabel } from '../lib/difficulty'
 
 type Professor = {
@@ -46,6 +48,61 @@ type CourseRow = {
   workload: number | null
   evaluations: number | null
   responses: number | null
+}
+
+type Review = {
+  id: number
+  courseCode: string
+  wouldRecommend: boolean
+  comment: string
+  source: 'user' | 'rmp'
+  createdAt: string
+}
+
+const sourceLabel = (_source: 'user' | 'rmp') => 'Verified BC Student'
+
+// Comments past this length are unlikely to fit the 4-line clamp, so they
+// get a "Read more" toggle; shorter ones just render in full.
+const LONG_COMMENT_THRESHOLD = 240
+
+function ReviewCard({ review }: { review: Review }) {
+  const [expanded, setExpanded] = useState(false)
+  const needsTruncation = review.comment.length > LONG_COMMENT_THRESHOLD
+
+  return (
+    <div className="review-card">
+      <div className="review-card__head">
+        <span
+          className={
+            'review-card__badge ' +
+            (review.wouldRecommend ? 'review-card__badge--yes' : 'review-card__badge--no')
+          }
+        >
+          Would take again: {review.wouldRecommend ? 'Yes' : 'No'}
+        </span>
+      </div>
+      <p
+        className={
+          'review-card__text' +
+          (needsTruncation && !expanded ? ' review-card__text--clamped' : '')
+        }
+      >
+        {review.comment}
+      </p>
+      {needsTruncation && (
+        <button
+          type="button"
+          className="review-card__toggle"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
+      <div className="review-card__meta">
+        {sourceLabel(review.source)} · {review.courseCode}
+      </div>
+    </div>
+  )
 }
 
 const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(1))
@@ -109,6 +166,7 @@ export default function ProfessorPage() {
   // Semester selector. terms[0] is the latest (server default); '' = use default.
   const [terms, setTerms] = useState<{ value: string; label: string }[]>([])
   const [selectedTerm, setSelectedTerm] = useState('')
+  const [reviews, setReviews] = useState<Review[]>([])
 
   useEffect(() => {
     fetch(api('/api/courses/filters'))
@@ -146,6 +204,33 @@ export default function ProfessorPage() {
       active = false
     }
   }, [id, selectedTerm])
+
+  // Reviews aren't term-scoped, so they're fetched once per professor,
+  // separate from the sections effect above.
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('reviews')
+      .select('id, course_code, would_recommend, comment, source, created_at')
+      .eq('instructor_id', Number(id))
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!active || error || !data) return
+        setReviews(
+          data.map((r) => ({
+            id: r.id,
+            courseCode: r.course_code,
+            wouldRecommend: r.would_recommend,
+            comment: r.comment,
+            source: r.source,
+            createdAt: r.created_at,
+          }))
+        )
+      })
+    return () => {
+      active = false
+    }
+  }, [id])
 
   // Collapse the per-section rows of the current term into one card per course.
   const currentCourses = useMemo(() => {
@@ -213,14 +298,21 @@ export default function ProfessorPage() {
     <main className="course">
       <div className="container--fluid">
         {/* Header */}
+        <div className="course__eyebrow-row">
+          <div className="prof-header__eyebrow">
+            <span className="prof-badge">Professor Profile</span>
+            {p.latestSemester && (
+              <span className="prof-updated">Updated {p.latestSemester}</span>
+            )}
+          </div>
+          <Link to={`/professors/${p.id}/review`} className="course__review-cta">
+            Had this professor? Leave a review
+            <ChevronRight size={14} />
+          </Link>
+        </div>
+
         <div className="prof-header">
           <div className="prof-header__left">
-            <div className="prof-header__eyebrow">
-              <span className="prof-badge">Professor Profile</span>
-              {p.latestSemester && (
-                <span className="prof-updated">Updated {p.latestSemester}</span>
-              )}
-            </div>
             <h1 className="course__title prof-name">{p.name}</h1>
             {(p.department || p.college) && (
               <div className="prof-meta">
@@ -233,7 +325,7 @@ export default function ProfessorPage() {
             )}
             <div className="prof-based">
               <BadgeCheck size={15} />
-              Based on {p.totalEvals ?? 0} student evaluations
+              Based on {p.totalEvals ?? 0} class evaluations
             </div>
           </div>
 
@@ -367,6 +459,20 @@ export default function ProfessorPage() {
                 </article>
               )
             })}
+
+            <h2 className="section__title course__h2 prof-teaching-head prof-comments-head">
+              Professor Comments
+            </h2>
+
+            {reviews.length === 0 ? (
+              <p className="placeholder-note">No comments yet. Be the first to review.</p>
+            ) : (
+              <div className="pcard__reviews-list">
+                {reviews.map((r) => (
+                  <ReviewCard key={r.id} review={r} />
+                ))}
+              </div>
+            )}
           </div>
 
           <aside className="prof-body__side">

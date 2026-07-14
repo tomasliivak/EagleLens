@@ -123,6 +123,18 @@ Notable column facts:
 
 Real: `/` `HomePage`, `/explore` `ExplorePage`, `/courses/:courseCode` `CoursePage`. Placeholders ("Coming soon"): `/rankings`, `/my-plan`, and footer pages (`/privacy`, `/terms`, `/contact`, `/about` via `PlaceholderPage`). All wrapped in `components/Layout.tsx` (Navbar + Footer). `SearchBar` is debounced and calls `/api/courses/search`. Reusable CSS classes: `.metric*`, `.sort*`, `.tag`, `.pill`, `.container--fluid`, `.stat-box*`.
 
+## Auth & user data (data structures only — no UI yet)
+
+Supabase Auth with **Google OAuth restricted to @bc.edu** (email provider disabled). Enforcement is server-side: an `after insert` trigger on `auth.users` (`enforce_bc_email`, migration 0024) rejects non-BC signups, and every write RLS policy also checks `is_bc_email()`. The frontend `hd: 'bc.edu'` query param is a hint only.
+
+Tables (migration `0024_auth_reviews_saved_courses.sql`):
+- `reviews` — `user_id` (nullable, FK `auth.users`), `course_code`, `instructor_id`, `would_recommend boolean`, `comment`, `source` (`'user'` | `'rmp'`). Public read; insert/update/delete only by the owner (`auth.uid()`). Unique `(user_id, course_code, instructor_id)`. **`user_id is null` rows are imported RateMyProfessors reviews** — inserted only via the service-role key; a check constraint stops signed-in users from forging `source = 'rmp'`.
+- `saved_courses` — PK `(user_id, course_code)`. **Fully private**: owner-only select/insert/delete (do NOT copy the public-read RLS pattern here).
+
+Frontend plumbing: `src/lib/supabase.ts` (browser client from `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`), `src/lib/auth.tsx` (`AuthProvider` / `useAuth`), navbar user icon (sign-in when signed out, links to `/account` when signed in), blank `AccountPage` at `/account`. User data (reviews/saved) goes **frontend → Supabase directly** (RLS is the boundary); the Express backend is untouched and only serves catalog reads.
+
+**Not built yet:** any UI for creating/showing reviews, saving classes, or the saved-classes list; the RMP import script. Only the schema, RLS, and sign-in flow exist.
+
 ## Conventions & gotchas
 
 - **Default term is `2026FALL`** (data currently holds `2026FALL` and `2026SUMM`).

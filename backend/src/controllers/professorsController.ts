@@ -40,6 +40,11 @@ type CourseRow = {
   total_responses: number | null;
 };
 
+type ReviewCourseRow = {
+  course_code: string;
+  title: string | null;
+};
+
 // GET /api/professors/:id
 // Professor profile: header aggregates, courses taught this term, and the full
 // historical catalog (also the source for the highlights shown on the page).
@@ -115,5 +120,36 @@ export async function getProfessor(req: Request, res: Response): Promise<void> {
     term,
     currentSections,
     courses,
+  });
+}
+
+// GET /api/professors/:id/review-courses
+// Every course this professor has ever taught, for the "Leave a Review"
+// form's course picker when the review is opened from the professor page.
+export async function getProfessorReviewCourses(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Professor not found." });
+    return;
+  }
+
+  const { data, error } = await supabase.rpc("get_professor_review_courses", {
+    p_id: id,
+  });
+
+  if (error) {
+    console.error("Professor review-courses lookup failed:", error.message);
+    res.status(500).json({ error: "Professor review-courses lookup failed." });
+    return;
+  }
+
+  res.json({
+    courses: ((data ?? []) as ReviewCourseRow[]).map((row) => ({
+      courseCode: row.course_code,
+      title: row.title,
+    })),
   });
 }

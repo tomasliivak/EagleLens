@@ -231,7 +231,7 @@ export default function DepartmentPage() {
             )}
             <div className="prof-based">
               <BadgeCheck size={15} />
-              Based on {d.totalEvals ?? 0} student evaluations across{' '}
+              Based on {d.totalEvals ?? 0} class evaluations across{' '}
               {d.courseCount ?? 0} courses
             </div>
           </div>

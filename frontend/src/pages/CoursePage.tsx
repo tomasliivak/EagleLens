@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { supabase } from '../lib/supabase'
 import { difficultyLabel } from '../lib/difficulty'
 import {
   Star,
@@ -9,6 +10,7 @@ import {
   ArrowUpNarrowWide,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
 } from 'lucide-react'
 
 type Section = {
@@ -55,8 +57,18 @@ type Course = {
   avgWorkload: number | null
 }
 
+type Review = {
+  id: number
+  instructorId: number
+  wouldRecommend: boolean
+  comment: string
+  source: 'user' | 'rmp'
+  createdAt: string
+}
+
 type SortKey = 'rating' | 'challenging' | 'hours'
 type SortDir = 'desc' | 'asc'
+type TabKey = 'sections' | 'comments'
 
 const sortOptions: { key: SortKey; label: string; field: keyof Professor }[] = [
   { key: 'rating', label: 'Rating', field: 'overallRating' },
@@ -79,6 +91,8 @@ const workloadLabel = (v: number | null) => {
   if (v >= 2.3) return 'Moderate'
   return 'Light'
 }
+
+const sourceLabel = (_source: 'user' | 'rmp') => 'Verified BC Student'
 
 // meeting_text packs location + days + time, e.g.
 // "Fulton Hall 423 WF 11:00AM-11:50AM" → location "Fulton Hall 423",
@@ -129,6 +143,48 @@ function Metric({ label, value }: { label: string; value: number | null }) {
   )
 }
 
+// Comments past this length are unlikely to fit the 4-line clamp, so they
+// get a "Read more" toggle; shorter ones just render in full.
+const LONG_COMMENT_THRESHOLD = 240
+
+function ReviewCard({ review }: { review: Review }) {
+  const [expanded, setExpanded] = useState(false)
+  const needsTruncation = review.comment.length > LONG_COMMENT_THRESHOLD
+
+  return (
+    <div className="review-card">
+      <div className="review-card__head">
+        <span
+          className={
+            'review-card__badge ' +
+            (review.wouldRecommend ? 'review-card__badge--yes' : 'review-card__badge--no')
+          }
+        >
+          Would take again: {review.wouldRecommend ? 'Yes' : 'No'}
+        </span>
+      </div>
+      <p
+        className={
+          'review-card__text' +
+          (needsTruncation && !expanded ? ' review-card__text--clamped' : '')
+        }
+      >
+        {review.comment}
+      </p>
+      {needsTruncation && (
+        <button
+          type="button"
+          className="review-card__toggle"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
+      <div className="review-card__meta">{sourceLabel(review.source)}</div>
+    </div>
+  )
+}
+
 export default function CoursePage() {
   const { courseCode = '' } = useParams()
   const [course, setCourse] = useState<Course | null>(null)
@@ -137,7 +193,8 @@ export default function CoursePage() {
   const [notFound, setNotFound] = useState(false)
   const [sort, setSort] = useState<SortKey>('rating')
   const [dir, setDir] = useState<SortDir>('desc')
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [activeTab, setActiveTab] = useState<Map<number, TabKey>>(new Map())
+  const [reviews, setReviews] = useState<Review[]>([])
   // Semester selector. terms[0] is the latest (server default); '' = use default.
   const [terms, setTerms] = useState<{ value: string; label: string }[]>([])
   const [selectedTerm, setSelectedTerm] = useState('')
@@ -179,6 +236,43 @@ export default function CoursePage() {
       active = false
     }
   }, [courseCode, selectedTerm])
+
+  // Reviews aren't term-scoped, so they're fetched once per course, separate
+  // from the sections effect above.
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('reviews')
+      .select('id, instructor_id, would_recommend, comment, source, created_at')
+      .eq('course_code', courseCode)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!active || error || !data) return
+        setReviews(
+          data.map((r) => ({
+            id: r.id,
+            instructorId: r.instructor_id,
+            wouldRecommend: r.would_recommend,
+            comment: r.comment,
+            source: r.source,
+            createdAt: r.created_at,
+          }))
+        )
+      })
+    return () => {
+      active = false
+    }
+  }, [courseCode])
+
+  const reviewsByInstructor = useMemo(() => {
+    const map = new Map<number, Review[]>()
+    for (const r of reviews) {
+      const list = map.get(r.instructorId)
+      if (list) list.push(r)
+      else map.set(r.instructorId, [r])
+    }
+    return map
+  }, [reviews])
 
   // Collapse one professor's section rows into a single card.
   const professors = useMemo(() => {
@@ -227,10 +321,10 @@ export default function CoursePage() {
     })
   }, [professors, sort, dir])
 
-  const toggle = (id: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+  const setTab = (id: number, tab: TabKey) =>
+    setActiveTab((prev) => {
+      const next = new Map(prev)
+      next.get(id) === tab ? next.delete(id) : next.set(id, tab)
       return next
     })
 
@@ -276,11 +370,19 @@ export default function CoursePage() {
     <main className="course">
       <div className="container--fluid">
         {/* Header */}
-        <div className="course__eyebrow">{eyebrow.toUpperCase()}</div>
-        <h1 className="course__title">{course.title ?? course.courseCode}</h1>
+        <div className="course__eyebrow-row">
+          <div className="course__eyebrow">{eyebrow.toUpperCase()}</div>
+          <Link
+            to={`/courses/${encodeURIComponent(course.courseCode)}/review`}
+            className="course__review-cta"
+          >
+            Taken this course? Leave a review
+            <ChevronRight size={14} />
+          </Link>
+        </div>
 
-        <div className="course__overview">
-          <p className="course__desc">{course.description}</p>
+        <div className="course__head">
+          <h1 className="course__title">{course.title ?? course.courseCode}</h1>
           <div className="course__stats-side">
             <div className="course__stats">
               <div className="stat-box">
@@ -308,6 +410,8 @@ export default function CoursePage() {
             )}
           </div>
         </div>
+
+        <p className="course__desc">{course.description}</p>
 
         {/* Sections */}
         <div className="course__instructors-head">
@@ -359,19 +463,19 @@ export default function CoursePage() {
           </p>
         )}
 
-        {sorted.map((prof, idx) => {
-          const open = expanded.has(prof.instructorId)
+        {sorted.map((prof) => {
+          const profReviews = reviewsByInstructor.get(prof.instructorId) ?? []
+          const tab = activeTab.get(prof.instructorId)
           return (
             <article className="pcard" key={prof.instructorId}>
               <div className="pcard__main">
-                <div className="pcard__rank">#{idx + 1}</div>
-
                 <div className="pcard__left">
                   <div className="avatar">{initials(prof.name)}</div>
                   <Stars value={prof.overallRating} />
                   <div className="pcard__overall">{fmt(prof.overallRating)}</div>
                   <div className="pcard__overall-cap">
-                    Overall · {prof.overallEvaluations ?? 0} evals
+                    Overall · {prof.overallEvaluations ?? 0}{' '}
+                    {prof.overallEvaluations === 1 ? 'eval' : 'evals'}
                   </div>
                 </div>
 
@@ -414,22 +518,36 @@ export default function CoursePage() {
 
                     <div className="metric-col">
                       <Metric label="Difficulty" value={prof.intellectuallyChallenging} />
-                      <button
-                        type="button"
-                        className="pcard__toggle"
-                        onClick={() => toggle(prof.instructorId)}
-                      >
-                        {open ? 'Hide Sections' : 'Show Sections'}
-                        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {open && (
-                <div className="pcard__sections">
-                  <div className="pcard__sections-title">Available Sections</div>
+              <nav className="pcard-tabs">
+                <button
+                  type="button"
+                  className={'pcard-tab' + (tab === 'sections' ? ' active' : '')}
+                  onClick={() => setTab(prof.instructorId, 'sections')}
+                >
+                  Sections ({prof.sections.length})
+                  {tab === 'sections' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+                <button
+                  type="button"
+                  className={'pcard-tab' + (tab === 'comments' ? ' active' : '')}
+                  onClick={() => setTab(prof.instructorId, 'comments')}
+                  disabled={profReviews.length === 0}
+                >
+                  {profReviews.length === 0
+                    ? 'No Student Comments'
+                    : `Student Comments (${profReviews.length})`}
+                  {profReviews.length > 0 &&
+                    (tab === 'comments' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+                </button>
+              </nav>
+
+              {tab === 'sections' && (
+                <div className="pcard__panel">
                   <table className="sections-table">
                     <thead>
                       <tr>
@@ -453,6 +571,22 @@ export default function CoursePage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {tab === 'comments' && (
+                <div className="pcard__panel pcard__panel--comments">
+                  {profReviews.length === 0 ? (
+                    <div className="pcard__panel-empty">
+                      No comments yet. Be the first to review.
+                    </div>
+                  ) : (
+                    <div className="pcard__reviews-list">
+                      {profReviews.map((r) => (
+                        <ReviewCard key={r.id} review={r} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </article>

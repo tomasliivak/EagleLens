@@ -226,7 +226,7 @@ export default function SchoolPage() {
             <h1 className="course__title prof-name">{s.name}</h1>
             <div className="prof-based">
               <BadgeCheck size={15} />
-              Based on {s.totalEvals ?? 0} student evaluations across{' '}
+              Based on {s.totalEvals ?? 0} class evaluations across{' '}
               {s.courseCount ?? 0} courses
             </div>
           </div>
