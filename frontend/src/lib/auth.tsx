@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import posthog from './posthog'
 
 type AuthContextValue = {
   session: Session | null
@@ -33,18 +34,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       // The database trigger blocks non-BC signups; this is a client safety net.
       if (s && !s.user.email?.toLowerCase().endsWith('@bc.edu')) {
         supabase.auth.signOut()
         return
       }
+
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && s) {
+        posthog.identify(s.user.id, {
+          email: s.user.email,
+          name: s.user.user_metadata.full_name ?? s.user.user_metadata.name,
+        })
+      } else if (event === 'SIGNED_OUT') {
+        posthog.reset()
+      }
+
       setSession(s)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
 
   const signIn = () => {
+    posthog.capture('sign_in_started', { provider: 'google' })
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -57,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = () => {
+    posthog.capture('sign_out_started')
     supabase.auth.signOut()
   }
 

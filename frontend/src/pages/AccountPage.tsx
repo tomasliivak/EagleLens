@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
+import posthog from '../lib/posthog'
 
 /* ---------------------------------------------------------------------- *
  * Saved Courses — temporarily disabled.
@@ -203,13 +204,15 @@ export default function AccountPage() {
         )
       )
       setEditingId(null)
+      posthog.capture('review_updated', { would_recommend: editWouldRecommend })
     }
   }
 
-  const removeReview = (id: number) => {
+  const removeReview = async (id: number) => {
     if (!window.confirm('Remove this review? This cannot be undone.')) return
     setReviews((prev) => prev.filter((r) => r.id !== id))
-    supabase.from('reviews').delete().eq('id', id).then()
+    const { error } = await supabase.from('reviews').delete().eq('id', id)
+    if (!error) posthog.capture('review_deleted')
   }
 
   if (loading) return null

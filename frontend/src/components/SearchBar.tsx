@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { api } from '../lib/api'
+import posthog from '../lib/posthog'
 
 type SearchResults = {
   courses: { courseCode: string; title: string | null }[]
@@ -61,6 +62,17 @@ export default function SearchBar({
     e.preventDefault()
     // Prefer the first live suggestion (courses first), else treat the input as
     // a course code.
+    const resultType = results.courses[0]
+      ? 'course'
+      : results.professors[0]
+      ? 'professor'
+      : results.departments[0]
+      ? 'department'
+      : results.schools[0]
+      ? 'school'
+      : 'course_code'
+    posthog.capture('search_submitted', { result_type: resultType, search_variant: variant })
+
     if (results.courses[0]) goToCourse(results.courses[0].courseCode)
     else if (results.professors[0]) go('/professors/' + results.professors[0].id)
     else if (results.departments[0])

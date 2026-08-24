@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { difficultyLabel } from '../lib/difficulty'
+import posthog from '../lib/posthog'
 import {
   Star,
   SlidersHorizontal,
@@ -232,6 +233,11 @@ export default function ExplorePage() {
 
   // Apply a preset: replace the whole query with a fresh set (omitting defaults).
   const applyPreset = (f: Filters, s: SortKey, d: SortDir) => {
+    posthog.capture('explore_preset_applied', {
+      sort: s,
+      sort_direction: d,
+      preset_target: f.core ? 'core' : 'department',
+    })
     const next = new URLSearchParams()
     if (f.term && f.term !== defaultTerm) next.set('term', f.term)
     if (f.core) next.set('core', f.core)
@@ -424,35 +430,45 @@ export default function ExplorePage() {
             <button
               type="button"
               className="pill"
-              onClick={() => applyPreset({ ...emptyFilters, core: 'Arts' }, 'rating', 'desc')}
+              onClick={() =>
+                applyPreset({ ...emptyFilters, core: 'Arts' }, 'rating', 'desc')
+              }
             >
               Highest-Rated Arts Core
             </button>
             <button
               type="button"
               className="pill"
-              onClick={() => applyPreset({ ...emptyFilters, core: 'Social Science' }, 'challenging', 'asc')}
+              onClick={() =>
+                applyPreset({ ...emptyFilters, core: 'Social Science' }, 'challenging', 'asc')
+              }
             >
               Easiest Social Science
             </button>
             <button
               type="button"
               className="pill"
-              onClick={() => applyPreset({ ...emptyFilters, core: 'Natural Science' }, 'hours', 'asc')}
+              onClick={() =>
+                applyPreset({ ...emptyFilters, core: 'Natural Science' }, 'hours', 'asc')
+              }
             >
               Lightest Natural Science
             </button>
             <button
               type="button"
               className="pill"
-              onClick={() => applyPreset({ ...emptyFilters, department: 'Finance' }, 'rating', 'desc')}
+              onClick={() =>
+                applyPreset({ ...emptyFilters, department: 'Finance' }, 'rating', 'desc')
+              }
             >
               Top-Rated Finance
             </button>
             <button
               type="button"
               className="pill"
-              onClick={() => applyPreset({ ...emptyFilters, department: 'Computer Science' }, 'rating', 'desc')}
+              onClick={() =>
+                applyPreset({ ...emptyFilters, department: 'Computer Science' }, 'rating', 'desc')
+              }
             >
               Top-Rated CS
             </button>

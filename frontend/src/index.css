@@ -661,6 +661,18 @@ button {
   border-color: var(--maroon-dark);
 }
 
+/* Smaller variant, e.g. under a card's comments list */
+.course__review-cta--sm {
+  padding: 7px 14px;
+  font-size: 0.82rem;
+}
+
+.pcard__review-cta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
 .course__title {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 2.8rem;

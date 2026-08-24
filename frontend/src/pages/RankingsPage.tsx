@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import { api } from '../lib/api'
+import posthog from '../lib/posthog'
 
 type RankItem = {
   id: string
@@ -224,7 +225,13 @@ export default function RankingsPage() {
               key={m.key}
               type="button"
               className={'pill' + (m.key === metricKey ? ' pill--active' : '')}
-              onClick={() => setParam('metric', m.key)}
+              onClick={() => {
+                posthog.capture('ranking_metric_selected', {
+                  entity_type: entity.key,
+                  metric: m.key,
+                })
+                setParam('metric', m.key)
+              }}
             >
               {m.pill}
             </button>

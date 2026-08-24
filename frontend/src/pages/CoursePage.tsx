@@ -587,6 +587,15 @@ export default function CoursePage() {
                       ))}
                     </div>
                   )}
+                  <div className="pcard__review-cta-row">
+                    <Link
+                      to={`/courses/${encodeURIComponent(course.courseCode)}/review?instructor=${prof.instructorId}`}
+                      className="course__review-cta course__review-cta--sm"
+                    >
+                      Leave a review
+                      <ChevronRight size={13} />
+                    </Link>
+                  </div>
                 </div>
               )}
             </article>

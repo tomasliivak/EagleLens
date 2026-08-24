@@ -30,3 +30,5 @@ frontend/public/sitemap.xml
 
 # Large API sample fixtures (regenerate with backend/scripts/fetchSample.ts)
 backend/data/*.sample.json
+
+.claude

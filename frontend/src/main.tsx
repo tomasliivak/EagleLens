@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider } from './lib/auth'
+import './lib/posthog'
 import App from './App.tsx'
 import './index.css'
 

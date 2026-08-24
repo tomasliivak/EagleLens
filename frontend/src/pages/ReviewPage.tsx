@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import posthog from '../lib/posthog'
 import { BadgeCheck, Check, GraduationCap } from 'lucide-react'
 
 type CourseInfo = {
@@ -159,6 +160,10 @@ export default function ReviewPage() {
       )
       return
     }
+    posthog.capture('review_submitted', {
+      submission_mode: mode,
+      would_recommend: wouldRecommend,
+    })
     setSuccess(true)
   }
 
