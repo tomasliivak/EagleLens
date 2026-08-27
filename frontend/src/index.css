@@ -682,23 +682,44 @@ button {
   letter-spacing: -0.01em;
 }
 
-.course__head {
+.course__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 32px;
 }
 
-.course__head .course__title {
-  margin: 0;
+.course__header-main {
+  min-width: 0;
+}
+
+/* Right column: CTA on top, stat boxes below. The 16px gap reproduces the
+   spacing the old .course__eyebrow-row margin-bottom used to provide. */
+.course__header-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+/* Left-column rhythm. Scoped because .course__eyebrow and .course__title are
+   also used by the Department, School and Professor pages. */
+.course__header-main .course__eyebrow {
+  margin-bottom: 6px;
+}
+
+.course__header-main .course__title {
+  margin: 0 0 10px;
+  line-height: 1.15;
   min-width: 0;
 }
 
 .course__desc {
   color: #555;
   font-size: 1.05rem;
-  line-height: 1.7;
-  margin: 18px 0 30px;
+  line-height: 1.6;
+  margin: 0 0 20px;
   max-width: 620px;
 }
 
@@ -755,7 +776,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .course__h2 {
@@ -804,7 +825,7 @@ button {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 11px;
   overflow: hidden;
 }
 
@@ -813,7 +834,7 @@ button {
   display: grid;
   grid-template-columns: 132px 1fr;
   gap: 22px;
-  padding: 22px 24px;
+  padding: 14px 22px;
 }
 
 .pcard__left {
@@ -824,8 +845,8 @@ button {
 }
 
 .avatar {
-  width: 66px;
-  height: 66px;
+  width: 51px;
+  height: 51px;
   border-radius: 12px;
   background: linear-gradient(155deg, var(--maroon) 0%, var(--maroon-dark) 100%);
   color: #fff;
@@ -833,7 +854,7 @@ button {
   font-weight: 700;
   display: grid;
   place-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .stars {
@@ -854,17 +875,19 @@ button {
   font-size: 1.2rem;
   font-weight: 800;
   color: var(--maroon-dark);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .pcard__overall-cap {
   color: var(--muted);
   font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .pcard__name {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.3rem;
+  font-size: 1.18rem;
+  line-height: 1.35;
   font-weight: 700;
   color: var(--maroon);
 }
@@ -872,11 +895,11 @@ button {
 .pcard__sub {
   color: #6b6b6b;
   font-size: 0.9rem;
-  margin: 3px 0 2px;
+  margin: 2px 0 2px;
 }
 
 .pcard__sub--course {
-  margin-bottom: 14px;
+  margin-bottom: 7px;
 }
 
 .pcard__metrics {
@@ -889,7 +912,7 @@ button {
 .metric-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .review-card {
@@ -967,7 +990,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .metric__head > span:first-child {
@@ -993,6 +1016,12 @@ button {
   overflow: hidden;
 }
 
+/* Course-page cards run a slightly thinner bar; the base 7px stays for
+   ExplorePage's .ecard metrics. */
+.pcard__metrics .metric__bar {
+  height: 6px;
+}
+
 .metric__fill {
   height: 100%;
   background: linear-gradient(90deg, var(--maroon) 0%, #9a2f3d 100%);
@@ -1012,7 +1041,7 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 12px 14px;
+  padding: 10px 13px;
   font-size: 0.85rem;
   font-weight: 700;
   color: #6b6b6b;
@@ -1118,12 +1147,45 @@ button {
 }
 
 @media (max-width: 880px) {
-  .course__head {
-    flex-direction: column;
+  /* Re-flatten the two columns into the single-column arrangement this page
+     had before the split: eyebrow + CTA share the top row, then title, then
+     stats, then description. display:contents lifts the two wrappers out so
+     their children become grid items of .course__header. */
+  .course__header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 16px;
+    /* The base rule's `gap: 32px` would otherwise apply as a row gap on top of
+       the margins below. Spacing here is margin-driven, to match the pre-split
+       layout gap for gap. */
+    row-gap: 0;
   }
-  .course__stats-side {
+  .course__header-main,
+  .course__header-aside {
+    display: contents;
+  }
+  .course__header-main .course__eyebrow {
+    grid-area: 1 / 1;
+    margin-bottom: 0;
+    align-self: center;
+  }
+  .course__header-aside .course__review-cta {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  .course__header-main .course__title {
+    grid-area: 2 / 1 / auto / -1;
+    margin: 16px 0 0;
+  }
+  .course__header-aside .course__stats-side {
+    grid-area: 3 / 1 / auto / -1;
     align-items: flex-start;
     width: 100%;
+    margin-top: 32px;
+  }
+  .course__desc {
+    grid-area: 4 / 1 / auto / -1;
+    margin-top: 18px;
   }
   .pcard__main {
     grid-template-columns: 1fr;
@@ -1172,12 +1234,12 @@ button {
 /* ---------- Explore page ---------- */
 .explore {
   min-height: 60vh;
-  padding: 44px 0 80px;
+  padding: 30px 0 64px;
 }
 
 .explore__title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 2.8rem;
+  font-size: 2.3rem;
   font-weight: 700;
   color: var(--maroon-dark);
   margin: 0 0 8px;
@@ -1187,21 +1249,21 @@ button {
 .explore__sub {
   color: #6b6b6b;
   font-size: 1.05rem;
-  margin: 0 0 28px;
+  margin: 0 0 18px;
 }
 
 .filters {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 22px 24px;
-  margin-bottom: 32px;
+  padding: 18px 20px;
+  margin-bottom: 28px;
 }
 
 .filters__grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 10px;
 }
 
 .filters__select {
@@ -1209,7 +1271,7 @@ button {
   font-size: 0.92rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 11px 12px;
+  padding: 10px 12px;
   background: #fff;
   color: var(--ink);
   cursor: pointer;
@@ -1242,7 +1304,12 @@ button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 16px;
+  margin-top: 12px;
+}
+
+/* base .pill is 6px 14px (shared with SearchBar/Rankings) */
+.filters__popular .pill {
+  padding: 5px 12px;
 }
 
 .filters__popular-label {
@@ -1265,6 +1332,11 @@ button {
   margin-bottom: 14px;
 }
 
+/* base .explore__results-head is shared with Department/Professor/School */
+.explore .explore__results-head {
+  margin-bottom: 10px;
+}
+
 .explore__h2 {
   margin: 0 0 4px;
   font-size: 1.5rem;
@@ -1281,7 +1353,7 @@ button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 
 .fchip {
@@ -1292,7 +1364,7 @@ button {
   border: 1px solid #ecca85;
   color: var(--gold-text);
   border-radius: 20px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   font-size: 0.84rem;
   font-weight: 600;
 }
@@ -1314,8 +1386,8 @@ button {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 24px 28px;
-  margin-bottom: 18px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
 }
 
 .ecard__head {
@@ -1324,7 +1396,7 @@ button {
   justify-content: space-between;
   gap: 20px;
   border-bottom: 1px solid #f0ebe4;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 
 .ecard__code {
@@ -1337,10 +1409,10 @@ button {
 
 .ecard__title {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1f1f1f;
-  margin: 4px 0 6px;
+  margin: 2px 0 4px;
 }
 
 .ecard__prof {
@@ -1395,8 +1467,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 28px;
-  padding-top: 18px;
+  gap: 22px;
+  padding-top: 14px;
 }
 
 .ecard__main {
@@ -1407,7 +1479,7 @@ button {
 .ecard__metrics {
   display: grid;
   grid-template-columns: 1.7fr 1fr 1fr;
-  gap: 32px;
+  gap: 24px;
 }
 
 .ecard__metric-label {
@@ -1416,7 +1488,7 @@ button {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .ecard__metric-row {
@@ -1449,7 +1521,12 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: 12px;
+}
+
+/* base .tag is 6px 12px (shared with School/Department/Professor pages) */
+.ecard__tags .tag {
+  padding: 5px 10px;
 }
 
 .ecard__view {
@@ -1459,7 +1536,7 @@ button {
   color: #fff;
   border: none;
   border-radius: 9px;
-  padding: 12px 22px;
+  padding: 10px 20px;
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -2874,6 +2951,24 @@ button {
   .course__eyebrow-row {
     flex-wrap: wrap;
     row-gap: 4px;
+  }
+  /* Matches the eyebrow-row wrap above: the CTA drops under the eyebrow. */
+  .course__header {
+    grid-template-columns: 1fr;
+  }
+  .course__header-aside .course__review-cta {
+    grid-area: 2 / 1;
+    justify-self: start;
+    margin-top: 4px;
+  }
+  .course__header-main .course__title {
+    grid-area: 3 / 1;
+  }
+  .course__header-aside .course__stats-side {
+    grid-area: 4 / 1;
+  }
+  .course__desc {
+    grid-area: 5 / 1;
   }
   .course__stats {
     flex-wrap: wrap;

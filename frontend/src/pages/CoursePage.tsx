@@ -370,48 +370,52 @@ export default function CoursePage() {
     <main className="course">
       <div className="container--fluid">
         {/* Header */}
-        <div className="course__eyebrow-row">
-          <div className="course__eyebrow">{eyebrow.toUpperCase()}</div>
-          <Link
-            to={`/courses/${encodeURIComponent(course.courseCode)}/review`}
-            className="course__review-cta"
-          >
-            Taken this course? Leave a review
-            <ChevronRight size={14} />
-          </Link>
-        </div>
+        {/* Two independent columns: the left text and the right CTA/stats
+            stack on their own, so their vertical spacing can be tuned
+            separately. */}
+        <div className="course__header">
+          <div className="course__header-main">
+            <div className="course__eyebrow">{eyebrow.toUpperCase()}</div>
+            <h1 className="course__title">{course.title ?? course.courseCode}</h1>
+            <p className="course__desc">{course.description}</p>
+          </div>
 
-        <div className="course__head">
-          <h1 className="course__title">{course.title ?? course.courseCode}</h1>
-          <div className="course__stats-side">
-            <div className="course__stats">
-              <div className="stat-box">
-                <div className="stat-box__num">{fmt(course.avgRating)}</div>
-                <div className="stat-box__label">Avg. Rating</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-box__num">
-                  {fmt(course.difficulty)}{' '}
-                  <span className="stat-box__suffix">({difficultyLabel(course.difficulty)})</span>
+          <div className="course__header-aside">
+            <Link
+              to={`/courses/${encodeURIComponent(course.courseCode)}/review`}
+              className="course__review-cta"
+            >
+              Taken this course? Leave a review
+              <ChevronRight size={14} />
+            </Link>
+            <div className="course__stats-side">
+              <div className="course__stats">
+                <div className="stat-box">
+                  <div className="stat-box__num">{fmt(course.avgRating)}</div>
+                  <div className="stat-box__label">Avg. Rating</div>
                 </div>
-                <div className="stat-box__label">Difficulty</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-box__num stat-box__num--word">
-                  {workloadLabel(course.avgWorkload)}
+                <div className="stat-box">
+                  <div className="stat-box__num">
+                    {fmt(course.difficulty)}{' '}
+                    <span className="stat-box__suffix">({difficultyLabel(course.difficulty)})</span>
+                  </div>
+                  <div className="stat-box__label">Difficulty</div>
                 </div>
-                <div className="stat-box__label">Workload</div>
+                <div className="stat-box">
+                  <div className="stat-box__num stat-box__num--word">
+                    {workloadLabel(course.avgWorkload)}
+                  </div>
+                  <div className="stat-box__label">Workload</div>
+                </div>
               </div>
+              {!hasRatingData && (
+                <p className="course__stats-note">
+                  No student evaluation data for this course yet.
+                </p>
+              )}
             </div>
-            {!hasRatingData && (
-              <p className="course__stats-note">
-                No student evaluation data for this course yet.
-              </p>
-            )}
           </div>
         </div>
-
-        <p className="course__desc">{course.description}</p>
 
         {/* Sections */}
         <div className="course__instructors-head">

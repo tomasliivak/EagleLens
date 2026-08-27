@@ -191,7 +191,9 @@ export default function ExplorePage() {
 
   useEffect(() => {
     fetch(api('/api/courses/filters'))
-      .then((r) => r.json())
+      // A failed lookup returns { error } with a 500 — never store that as
+      // options, or every `options?.x` read below hits an undefined key.
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('filters'))))
       .then((data: FilterOptions) => setOptions(data))
       .catch(() => {})
   }, [])
