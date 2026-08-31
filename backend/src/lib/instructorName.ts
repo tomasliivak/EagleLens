@@ -63,7 +63,7 @@ export function standardizeInstructorName(name: string): string {
  * "First Last" form, dropping any middle names/initials. Returns null for
  * placeholders or anything we can't confidently parse into a name.
  */
-function bcEntryToCanonicalName(entry: string): string | null {
+export function bcEntryToCanonicalName(entry: string): string | null {
   if (isPlaceholderInstructor(entry)) return null;
 
   const commaIndex = entry.indexOf(",");
@@ -76,12 +76,36 @@ function bcEntryToCanonicalName(entry: string): string | null {
     return standardized || null;
   }
 
-  const last = entry.slice(0, commaIndex).trim();
-  const first = entry.slice(commaIndex + 1).trim().split(/\s+/)[0] ?? "";
+  // Split on commas, not just the first one: BC packs a suffix into a third
+  // field ("Mc Gowan, Richard, SJ"), and slicing past the first comma would
+  // glue it onto the first name as "Richard,".
+  const parts = entry.split(",");
+  const last = parts[0].trim();
+  const first = (parts[1] ?? "").trim().split(/\s+/)[0] ?? "";
 
   if (!last || !first) return null;
 
   return standardizeInstructorName(`${first} ${last}`);
+}
+
+// One or two name tokens — letters plus the punctuation real names carry.
+// Two allows multi-word surnames like "Mc Gowan" and "Van Dyke".
+const NAME_SIDE = /^\p{L}[\p{L}'’.-]*(?: \p{L}[\p{L}'’.-]*)?$/u;
+
+/**
+ * If a search query looks like a single "Last, First" name, returns it in the
+ * canonical "First Last" form for matching against instructors.canonical_name.
+ * Returns null for anything else — several commas, digits, or long fragments
+ * are ordinary search text (course titles carry commas too), not names.
+ */
+export function lastFirstQueryToCanonicalName(query: string): string | null {
+  const parts = query.split(",");
+  if (parts.length !== 2) return null;
+
+  const [last, first] = parts.map((p) => p.trim());
+  if (!NAME_SIDE.test(last) || !NAME_SIDE.test(first)) return null;
+
+  return bcEntryToCanonicalName(query);
 }
 
 /**

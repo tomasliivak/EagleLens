@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { supabase } from "../lib/supabase.ts";
 import { getDefaultTerm } from "../lib/terms.ts";
+import { lastFirstQueryToCanonicalName } from "../lib/instructorName.ts";
 
 // numeric columns come back from PostgREST as strings; counts as numbers.
 type SectionRow = {
@@ -14,6 +15,12 @@ type SectionRow = {
   course_rating: string | null;
   course_evaluations: number | null;
 };
+
+// Commas and parens are syntax inside a PostgREST or() logic tree, so filter
+// values must be double-quoted; " and \ are backslash-escaped inside quotes.
+function quoteFilterValue(value: string): string {
+  return `"${value.replace(/["\\]/g, "\\$&")}"`;
+}
 
 // GET /api/courses/search?q=...
 // Autocomplete: matches the query against course code or title.
@@ -29,10 +36,11 @@ export async function searchCourses(
   }
 
   const term = q.trim();
+  const pattern = quoteFilterValue(`%${term}%`);
   const { data, error } = await supabase
     .from("courses")
     .select("course_code, title")
-    .or(`course_code.ilike.%${term}%,title.ilike.%${term}%`)
+    .or(`course_code.ilike.${pattern},title.ilike.${pattern}`)
     .order("course_code")
     .limit(10);
 
@@ -62,24 +70,31 @@ export async function search(req: Request, res: Response): Promise<void> {
   }
 
   const term = q.trim();
+  const pattern = quoteFilterValue(`%${term}%`);
+
+  // "Berger, Christopher" also matches the canonical "Christopher Berger".
+  // Only instructors get this; a comma is real search text in a course title.
+  const nameQuery = lastFirstQueryToCanonicalName(term);
+  const instructors = supabase.from("instructors").select("id, canonical_name");
+  const instructorSearch = nameQuery
+    ? instructors.or(
+        `canonical_name.ilike.${pattern},` +
+          `canonical_name.ilike.${quoteFilterValue(`%${nameQuery}%`)}`
+      )
+    : instructors.ilike("canonical_name", `%${term}%`);
 
   const [courseResult, profResult, deptResult] = await Promise.all([
     supabase
       .from("courses")
       .select("course_code, title")
-      .or(`course_code.ilike.%${term}%,title.ilike.%${term}%`)
+      .or(`course_code.ilike.${pattern},title.ilike.${pattern}`)
       .order("course_code")
       .limit(5),
-    supabase
-      .from("instructors")
-      .select("id, canonical_name")
-      .ilike("canonical_name", `%${term}%`)
-      .order("canonical_name")
-      .limit(5),
+    instructorSearch.order("canonical_name").limit(5),
     supabase
       .from("departments")
       .select("code, name")
-      .or(`name.ilike.%${term}%,code.ilike.%${term}%`)
+      .or(`name.ilike.${pattern},code.ilike.${pattern}`)
       .not("name", "is", null)
       .order("name")
       .limit(5),
