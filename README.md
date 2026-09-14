@@ -84,7 +84,7 @@ pulled in by the sync scripts, never at request time.
 ### Prerequisites
 
 - **Node.js 20+** and npm
-- A Supabase project (or credentials for the existing one)
+- A Supabase project
 
 ### 1. Install
 
