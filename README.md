@@ -253,7 +253,3 @@ cap the slow scripts while testing:
 SYNC_LIMIT=20 npm run sync:evals -w backend
 ```
 
-## Not yet built
-
-The `/about` and `/contact` pages linked in the footer are placeholders, and there is
-no saved-courses UI yet.
