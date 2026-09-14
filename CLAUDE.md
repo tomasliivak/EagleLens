@@ -66,9 +66,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
-# Project Context: PlanUrBC
+# Project Context: Eagle Lens
 
-A **Boston College course-planning web app**. Students browse courses, see professor/section ratings sourced from BC's evaluation system, and explore courses by core requirement, school, department, and workload. (The app is named "PlanUrBC" in the UI; some code/README strings say "PlanYourBC" — same project.)
+A **Boston College course-planning web app**, live at https://eaglelens.org. Students browse courses, see professor/section ratings sourced from BC's evaluation system, and explore courses by core requirement, school, department, and workload. (The app is named **"Eagle Lens"** in the UI. The repo directory, the root `package.json` name, and a few leftover strings still say "PlanUrBC"/"PlanYourBC" — same project.)
 
 ## Stack & layout
 
@@ -100,13 +100,19 @@ The DB is the **union** of two feeds, stitched on `(course_code, canonical instr
 
 **Stitching:** instructor names are canonicalized to `"First Last"` by `backend/src/lib/instructorName.ts` (`standardizeInstructorName`, `parseBCInstructors`), so BC's `"Last, First"` and Avalanche's `"First Last"` match deterministically. Placeholder "instructors" (Department, TA, etc.) are filtered out.
 
-**`npm run sync`** (`backend/scripts/syncDatabase.ts`) end-to-end: load BC catalog → upsert `departments / core_requirements / courses / course_core_requirements / instructors / sections / section_instructors` → query Avalanche summaries (concurrency-limited) → drilldown backfill once per course+instructor pair → upsert `evaluations`. Requires `SUPABASE_URL` + **`SUPABASE_SERVICE_ROLE_KEY`** (bypasses RLS). Set `SYNC_LIMIT=N` to cap Avalanche queries when testing.
+**Sync scripts** live in `backend/scripts/` and share helpers from `syncShared.ts`. All require `SUPABASE_URL` + **`SUPABASE_SERVICE_ROLE_KEY`** (bypasses RLS) and are run manually from the `backend` workspace:
+- **`npm run sync:classes`** (`syncClasses.ts`) — load BC catalog → upsert `departments / core_requirements / courses / course_core_requirements / instructors / sections / section_instructors` → `refreshCaches()`. Minutes.
+- **`npm run sync:evals`** (`syncEvals.ts`) — reads course codes **from the DB**, so it must run *after* `sync:classes`. Queries Avalanche summaries (concurrency capped at 5) → drilldown backfill once per course+instructor pair → upsert `evaluations`. Tens of minutes. `SYNC_LIMIT=N` caps phase 1 when testing.
+- **`npm run sync`** — `sync:classes && sync:evals`.
+- **`npm run sync:rmp`** (`fetchRateMyProf.ts`) — optional RateMyProfessors import (full refresh; `RMP_LIMIT=N`, `RMP_DELAY_MS`, default 1000ms).
+
+There is **no** `syncDatabase.ts` — it was split into the scripts above.
 
 ## Database
 
 Tables: `departments`, `core_requirements`, `courses`, `course_core_requirements`, `instructors`, `sections`, `section_instructors`, `evaluations`. Aggregation **views** (all `security_invoker`): `instructor_ratings` (a prof's global average), `instructor_course_ratings` (a prof in one course), `course_ratings` (a course across all profs). RLS = public read on every table.
 
-**RPC functions** (defined in migrations, called via `supabase.rpc(...)`): `get_course_instructors`, `get_course_professors`, `explore_courses`, `list_section_terms`.
+**RPC functions** (defined in migrations, called via `supabase.rpc(...)`): course/explore — `get_course_instructors`, `get_course_professors`, `explore_courses`, `list_section_terms`, `latest_section_term`; entity pages — `get_professor`, `get_professor_courses`, `get_professor_sections`, `get_department`, `get_school`; rankings — `rank_classes`, `rank_professors`, `rank_departments`, `rank_schools`, `rank_department_professors`, `rank_school_professors`; review forms — `get_course_review_professors`, `get_professor_review_courses`. Migration `0018_precomputed_caches.sql` also defines `refresh_caches`, called at the end of `sync:classes`.
 
 Notable column facts:
 - `core_requirements`: the human-readable label is the **`code`** column (e.g. `Arts`, `Social Science`, `Theology`); **`name` is null**.
@@ -114,16 +120,22 @@ Notable column facts:
 
 ## Backend API (`backend/src/`)
 
-- Health: `GET /api/health`, `GET /api/hello`.
-- **Courses** (`controllers/coursesController.ts`, `routes/coursesRoutes.ts`): `GET /api/courses/search?q=`, `/explore?term=&college=&department=&core=&minReviews=&maxWorkload=`, `/filters`, `/:courseCode?term=`, `/:courseCode/professors?term=`. **Route order matters**: `/search`, `/explore`, `/filters` are registered **before** `/:courseCode` so the param route doesn't shadow them.
-- **Evaluations** (`/api/evaluations/summary?query=`, `/api/evaluations/drilldown?...`): these hit **Avalanche live**, not the DB.
+All routers are mounted in `src/index.ts` behind `apiLimiter` (`middleware/rateLimit.ts`, in-memory so per-instance).
+
+- Health: `GET /api/health`, `GET /api/hello` (the latter is an unused demo route).
+- **Courses** (`/api/courses`): `/search?q=`, `/explore?term=&college=&department=&core=&minReviews=&maxWorkload=`, `/filters`, `/by-codes`, `/:courseCode?term=`, `/:courseCode/professors?term=`, `/:courseCode/review-professors`. **Route order matters**: the literal paths are registered **before** `/:courseCode` so the param route doesn't shadow them. `/by-codes` is currently unused by the frontend (it fed the shelved saved-courses UI).
+- **Rankings** (`/api/rankings/:entity`) — `classes | professors | departments | schools`, mapped to the `rank_*` RPCs.
+- **Search** (`/api/search`), **Professors** (`/api/professors/:id`, `/:id/review-courses`), **Departments** (`/api/departments/:code`), **Schools** (`/api/schools/:code`).
+- There is **no** `/api/evaluations` router — it was removed as unused. Avalanche is now only reached from the sync scripts, never at request time.
 - Backend Supabase client (`backend/src/lib/supabase.ts`) prefers the **anon** key for API reads (falls back to service-role only if that's all that's configured).
 
 ## Frontend routes / pages
 
-Real: `/` `HomePage`, `/explore` `ExplorePage`, `/courses/:courseCode` `CoursePage`. Placeholders ("Coming soon"): `/rankings`, `/my-plan`, and footer pages (`/privacy`, `/terms`, `/contact`, `/about` via `PlaceholderPage`). All wrapped in `components/Layout.tsx` (Navbar + Footer). `SearchBar` is debounced and calls `/api/courses/search`. Reusable CSS classes: `.metric*`, `.sort*`, `.tag`, `.pill`, `.container--fluid`, `.stat-box*`.
+Real: `/` `HomePage`, `/explore` `ExplorePage`, `/courses/:courseCode` `CoursePage`, `/courses/:courseCode/review` + `/professors/:id/review` `ReviewPage`, `/professors/:id` `ProfessorPage`, `/departments/:code` `DepartmentPage`, `/schools/:code` `SchoolPage`, `/rankings/:entity` `RankingsPage` (`/rankings` redirects to `/rankings/classes`; entities are `classes | professors | departments | schools`), `/account` `AccountPage`, `/privacy` `PrivacyPage`, `/terms` `TermsPage`, `*` `ErrorPage`. Placeholders ("Coming soon" via `PlaceholderPage`): **only** `/contact` and `/about`. There is no `/my-plan` route. All wrapped in `components/Layout.tsx` (Navbar + Footer). `SearchBar` is debounced and calls `/api/courses/search`. Reusable CSS classes: `.metric*`, `.sort*`, `.tag`, `.pill`, `.container--fluid`, `.stat-box*`.
 
-## Auth & user data (data structures only — no UI yet)
+The frontend build also runs `prebuild` (`scripts/generate-sitemap.mjs`) and `postbuild` (`scripts/prerender.mjs`), which read Supabase directly via plain (non-`VITE_`) env vars and degrade to a no-op when credentials are absent.
+
+## Auth & user data
 
 Supabase Auth with **Google OAuth restricted to @bc.edu** (email provider disabled). Enforcement is server-side: an `after insert` trigger on `auth.users` (`enforce_bc_email`, migration 0024) rejects non-BC signups, and every write RLS policy also checks `is_bc_email()`. The frontend `hd: 'bc.edu'` query param is a hint only.
 
@@ -131,9 +143,11 @@ Tables (migration `0024_auth_reviews_saved_courses.sql`):
 - `reviews` — `user_id` (nullable, FK `auth.users`), `course_code`, `instructor_id`, `would_recommend boolean`, `comment`, `source` (`'user'` | `'rmp'`). Public read; insert/update/delete only by the owner (`auth.uid()`). Unique `(user_id, course_code, instructor_id)`. **`user_id is null` rows are imported RateMyProfessors reviews** — inserted only via the service-role key; a check constraint stops signed-in users from forging `source = 'rmp'`.
 - `saved_courses` — PK `(user_id, course_code)`. **Fully private**: owner-only select/insert/delete (do NOT copy the public-read RLS pattern here).
 
-Frontend plumbing: `src/lib/supabase.ts` (browser client from `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`), `src/lib/auth.tsx` (`AuthProvider` / `useAuth`), navbar user icon (sign-in when signed out, links to `/account` when signed in), blank `AccountPage` at `/account`. User data (reviews/saved) goes **frontend → Supabase directly** (RLS is the boundary); the Express backend is untouched and only serves catalog reads.
+Frontend plumbing: `src/lib/supabase.ts` (browser client from `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`), `src/lib/auth.tsx` (`AuthProvider` / `useAuth`), navbar user icon (links to `/account`). User data (reviews) goes **frontend → Supabase directly** (RLS is the boundary); the Express backend is untouched and only serves catalog reads.
 
-**Not built yet:** any UI for creating/showing reviews, saving classes, or the saved-classes list; the RMP import script. Only the schema, RLS, and sign-in flow exist.
+**Shipped:** `ReviewPage` (write a review — recommend toggle + 20–500 char comment, duplicate handled on PG code `23505`), review display on course/professor pages, `AccountPage` "My Reviews" with inline edit/delete, and the RMP import script (`npm run sync:rmp -w backend`).
+
+**Not built yet:** saved courses. The `saved_courses` table and RLS exist, but there is no "save a course" button anywhere, and the `AccountPage` section for it is commented out (`AccountPage.tsx:5-12`). The backend `/api/courses/by-codes` route that fed it is currently unused.
 
 ## Conventions & gotchas
 
