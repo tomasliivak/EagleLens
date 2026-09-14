@@ -32,3 +32,7 @@ frontend/public/sitemap.xml
 backend/data/*.sample.json
 
 .claude
+
+.agents
+
+skills-lock.json

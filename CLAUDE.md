@@ -68,7 +68,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # Project Context: Eagle Lens
 
-A **Boston College course-planning web app**, live at https://eaglelens.org. Students browse courses, see professor/section ratings sourced from BC's evaluation system, and explore courses by core requirement, school, department, and workload. (The app is named **"Eagle Lens"** in the UI. The repo directory, the root `package.json` name, and a few leftover strings still say "PlanUrBC"/"PlanYourBC" — same project.)
+A **Boston College course-planning web app**, live at https://eaglelens.org. Students browse courses, see professor/section ratings sourced from BC's evaluation system, and explore courses by core requirement, school, department, and workload.
 
 ## Stack & layout
 
