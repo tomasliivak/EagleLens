@@ -442,6 +442,7 @@ type ExploreRow = {
 // "2026FALL" -> "Fall 2026", "2026SUMM" -> "Summer 2026", etc.
 const SEASON_LABELS: Record<string, string> = {
   FALL: "Fall",
+  SPRG: "Spring",
   SPRING: "Spring",
   SUMM: "Summer",
   SUMMER: "Summer",
