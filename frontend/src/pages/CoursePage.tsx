@@ -27,6 +27,11 @@ type Section = {
   intellectuallyChallenging: number | null
   avgHoursWeekly: number | null
   attendanceNecessary: number | null
+  difficultyPct: number | null
+  workloadPct: number | null
+  attendancePct: number | null
+  deptRatingPct: number | null
+  deptName: string | null
 }
 
 // One professor and every section they teach in this course/term. The rating
@@ -42,6 +47,11 @@ type Professor = {
   intellectuallyChallenging: number | null
   avgHoursWeekly: number | null
   attendanceNecessary: number | null
+  difficultyPct: number | null
+  workloadPct: number | null
+  attendancePct: number | null
+  deptRatingPct: number | null
+  deptName: string | null
   sections: Section[]
 }
 
@@ -128,17 +138,52 @@ function Stars({ value }: { value: number | null }) {
   )
 }
 
-function Metric({ label, value }: { label: string; value: number | null }) {
-  const pct = value === null ? 0 : Math.max(0, Math.min(100, (value / 5) * 100))
+// Percentile (0–100) → "72nd pct". Rounded and clamped to 1–99 so the label
+// never claims an absolute extreme; null/undefined → null (indicator omitted).
+function pctLabel(p: number | null | undefined): string | null {
+  if (p === null || p === undefined) return null
+  const n = Math.max(1, Math.min(99, Math.round(p)))
+  const mod100 = n % 100
+  const suffix =
+    mod100 >= 11 && mod100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th')
+  return `${n}${suffix} pct`
+}
+
+const PCT_TOOLTIP =
+  "Percentile among all BC professor-course pairs (each professor's average in a " +
+  'course across semesters). Ties count as half. Higher means more, not better.'
+
+// The bar fill is the metric's percentile among all BC professor-course pairs,
+// not the raw rating / 5; the raw value (or label) stays in the head and the
+// percentile is spelled out in a caption under the bar.
+function Metric({
+  label,
+  value,
+  pct,
+  display,
+  phrase,
+}: {
+  label: string
+  value: number | null
+  pct: number | null | undefined
+  display?: string
+  phrase: string
+}) {
+  const hasPct = pct !== null && pct !== undefined
   return (
     <div className="metric">
       <div className="metric__head">
         <span>{label}</span>
-        <span className="metric__val">{fmt(value)} / 5</span>
+        <span className="metric__val">{display ?? `${fmt(value)} / 5`}</span>
       </div>
-      <div className="metric__bar">
-        <div className="metric__fill" style={{ width: `${pct}%` }} />
+      <div className="metric__bar" title={hasPct ? PCT_TOOLTIP : undefined}>
+        <div className="metric__fill" style={{ width: `${pct ?? 0}%` }} />
       </div>
+      {hasPct && (
+        <div className="metric__caption" title={PCT_TOOLTIP}>
+          {phrase} {Math.max(1, Math.min(99, Math.round(pct)))}% of BC classes
+        </div>
+      )}
     </div>
   )
 }
@@ -291,6 +336,11 @@ export default function CoursePage() {
           intellectuallyChallenging: s.intellectuallyChallenging,
           avgHoursWeekly: s.avgHoursWeekly,
           attendanceNecessary: s.attendanceNecessary,
+          difficultyPct: s.difficultyPct,
+          workloadPct: s.workloadPct,
+          attendancePct: s.attendancePct,
+          deptRatingPct: s.deptRatingPct,
+          deptName: s.deptName,
           sections: [],
         }
         map.set(s.instructorId, p)
@@ -476,10 +526,22 @@ export default function CoursePage() {
                 <div className="pcard__left">
                   <div className="avatar">{initials(prof.name)}</div>
                   <Stars value={prof.overallRating} />
-                  <div className="pcard__overall">{fmt(prof.overallRating)}</div>
-                  <div className="pcard__overall-cap">
-                    Overall · {prof.overallEvaluations ?? 0}{' '}
-                    {prof.overallEvaluations === 1 ? 'eval' : 'evals'}
+                  <div className="pcard__overall-group">
+                    <div className="pcard__overall">{fmt(prof.overallRating)}</div>
+                    <div className="pcard__overall-cap">
+                      Overall · {prof.overallEvaluations ?? 0}{' '}
+                      {prof.overallEvaluations === 1 ? 'eval' : 'evals'}
+                    </div>
+                    {pctLabel(prof.deptRatingPct) && (
+                      <div
+                        className="pcard__pct"
+                        title={`Bayesian-adjusted overall rating vs. other professors in ${
+                          prof.deptName ?? 'their department'
+                        }`}
+                      >
+                        {pctLabel(prof.deptRatingPct)} in dept
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -497,31 +559,28 @@ export default function CoursePage() {
 
                   <div className="pcard__metrics">
                     <div className="metric-col">
-                      <div className="metric">
-                        <div className="metric__head">
-                          <span>Workload</span>
-                          <span className="metric__val">
-                            {workloadLabel(prof.avgHoursWeekly)}
-                          </span>
-                        </div>
-                        <div className="metric__bar">
-                          <div
-                            className="metric__fill"
-                            style={{
-                              width: `${
-                                prof.avgHoursWeekly === null
-                                  ? 0
-                                  : (prof.avgHoursWeekly / 5) * 100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <Metric label="Attendance" value={prof.attendanceNecessary} />
+                      <Metric
+                        label="Workload"
+                        value={prof.avgHoursWeekly}
+                        display={workloadLabel(prof.avgHoursWeekly)}
+                        pct={prof.workloadPct}
+                        phrase="More work than"
+                      />
+                      <Metric
+                        label="Attendance"
+                        value={prof.attendanceNecessary}
+                        pct={prof.attendancePct}
+                        phrase="More attendance-dependent than"
+                      />
                     </div>
 
                     <div className="metric-col">
-                      <Metric label="Difficulty" value={prof.intellectuallyChallenging} />
+                      <Metric
+                        label="Difficulty"
+                        value={prof.intellectuallyChallenging}
+                        pct={prof.difficultyPct}
+                        phrase="More difficult than"
+                      />
                     </div>
                   </div>
                 </div>

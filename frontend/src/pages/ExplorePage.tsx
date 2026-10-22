@@ -22,6 +22,8 @@ type ExploreCourse = {
   avgWorkload: number | null
   coreRequirements: string[]
   source: 'current' | 'historical' | 'limited'
+  difficultyPct: number | null
+  workloadPct: number | null
 }
 
 type FilterOptions = {
@@ -115,6 +117,22 @@ const emptyFilters: Filters = {
 }
 
 const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(1))
+
+// Percentile (0–100) → whole number clamped to 1–99, so captions never claim
+// an absolute extreme.
+const pctNum = (p: number) => Math.max(1, Math.min(99, Math.round(p)))
+
+// Percentile → "92nd".
+const pctOrdinal = (p: number) => {
+  const n = pctNum(p)
+  const suffix =
+    n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th')
+  return `${n}${suffix}`
+}
+
+const PCT_TOOLTIP =
+  'Percentile among BC courses with 5+ evaluations (course-wide averages). ' +
+  'Ties count as half. Higher means more, not better.'
 
 // Avg weekly-hours rating (1–5) → a friendly workload label.
 const workloadLabel = (v: number | null) => {
@@ -569,25 +587,35 @@ export default function ExplorePage() {
                       <div className="ecard__metric">
                         <div className="ecard__metric-label">Difficulty</div>
                         <div className="ecard__metric-row">
-                          <div className="metric__bar">
+                          {/* Fill = percentile among BC courses, not difficulty / 5. */}
+                          <div
+                            className="metric__bar"
+                            title={course.difficultyPct !== null ? PCT_TOOLTIP : undefined}
+                          >
                             <div
                               className="metric__fill"
-                              style={{
-                                width: `${
-                                  course.difficulty === null ? 0 : (course.difficulty / 5) * 100
-                                }%`,
-                              }}
+                              style={{ width: `${course.difficultyPct ?? 0}%` }}
                             />
                           </div>
                           <span className="ecard__metric-val">{fmt(course.difficulty)}</span>
                           <span className="ecard__metric-suffix">({difficultyLabel(course.difficulty)})</span>
                         </div>
+                        {course.difficultyPct !== null && (
+                          <div className="metric__caption" title={PCT_TOOLTIP}>
+                            More difficult than {pctNum(course.difficultyPct)}% of BC courses
+                          </div>
+                        )}
                       </div>
                       <div className="ecard__metric">
                         <div className="ecard__metric-label">Workload</div>
                         <div className="ecard__metric-val ecard__metric-val--word">
                           {workloadLabel(course.avgWorkload)}
                         </div>
+                        {course.workloadPct !== null && (
+                          <div className="metric__caption" title={PCT_TOOLTIP}>
+                            {pctOrdinal(course.workloadPct)} percentile
+                          </div>
+                        )}
                       </div>
                       <div className="ecard__metric">
                         <div className="ecard__metric-label">Offered</div>

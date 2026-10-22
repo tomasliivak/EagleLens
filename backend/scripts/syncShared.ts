@@ -136,14 +136,21 @@ export async function selectAll<T>(
   return out;
 }
 
-// Rebuild the precomputed ranking/explore cache tables from current DB state.
-// Cheap and idempotent; run at the end of each sync so the cached rows reflect
-// the latest catalog + evaluations.
+// Rebuild the precomputed ranking/explore cache tables from current DB state,
+// then the course-page percentile caches (which read ranking_professors, so
+// they must come second). Cheap and idempotent; run at the end of each sync so
+// the cached rows reflect the latest catalog + evaluations.
 export async function refreshCaches(): Promise<void> {
   console.log("Refreshing ranking/explore caches…");
   const { error } = await supabase.rpc("refresh_caches");
   if (error) {
     throw new Error(`refresh_caches failed: ${error.message}`);
+  }
+
+  console.log("Refreshing percentile caches…");
+  const { error: pctError } = await supabase.rpc("refresh_percentile_caches");
+  if (pctError) {
+    throw new Error(`refresh_percentile_caches failed: ${pctError.message}`);
   }
 }
 

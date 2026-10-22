@@ -884,6 +884,29 @@ button {
   line-height: 1.35;
 }
 
+/* Keeps rating / cap / dept percentile stacked when .pcard__left becomes a
+   row on mobile. */
+.pcard__overall-group {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+}
+
+.pcard__pct {
+  color: var(--maroon);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.metric__caption {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+  margin-top: 3px;
+}
+
 .pcard__name {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.18rem;
@@ -1198,6 +1221,9 @@ button {
   }
   .pcard__metrics {
     grid-template-columns: 1fr;
+  }
+  .pcard__overall-group {
+    align-items: flex-start;
   }
   .avatar {
     margin-bottom: 0;

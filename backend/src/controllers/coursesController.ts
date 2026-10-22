@@ -163,6 +163,11 @@ type SectionRatingRow = {
   intellectually_challenging: string | null;
   avg_hours_weekly: string | null;
   attendance_necessary: string | null;
+  difficulty_pct: string | null;
+  workload_pct: string | null;
+  attendance_pct: string | null;
+  dept_rating_pct: string | null;
+  dept_name: string | null;
 };
 
 const num = (v: string | null) => (v === null ? null : Number(v));
@@ -242,6 +247,12 @@ export async function getCourse(req: Request, res: Response): Promise<void> {
       intellectuallyChallenging: num(row.intellectually_challenging),
       avgHoursWeekly: num(row.avg_hours_weekly),
       attendanceNecessary: num(row.attendance_necessary),
+      // Percentiles (0-100) from the 0031 caches; null when not meaningful.
+      difficultyPct: num(row.difficulty_pct ?? null),
+      workloadPct: num(row.workload_pct ?? null),
+      attendancePct: num(row.attendance_pct ?? null),
+      deptRatingPct: num(row.dept_rating_pct ?? null),
+      deptName: row.dept_name ?? null,
     })
   );
 
@@ -437,6 +448,8 @@ type ExploreRow = {
   avg_workload: string | null;
   core_requirements: string[] | null;
   source: "current" | "historical" | "limited";
+  difficulty_pct: string | null;
+  workload_pct: string | null;
 };
 
 // "2026FALL" -> "Fall 2026", "2026SUMM" -> "Summer 2026", etc.
@@ -518,6 +531,9 @@ export async function exploreCourses(
     avgWorkload: num(row.avg_workload),
     coreRequirements: row.core_requirements ?? [],
     source: row.source,
+    // Percentiles (0-100) vs. BC courses (migration 0032); null when not meaningful.
+    difficultyPct: num(row.difficulty_pct ?? null),
+    workloadPct: num(row.workload_pct ?? null),
   }));
 
   res.json({
