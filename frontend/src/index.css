@@ -892,14 +892,6 @@ button {
   align-items: inherit;
 }
 
-.pcard__pct {
-  color: var(--maroon);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.35;
-  margin-top: 2px;
-}
-
 .metric__caption {
   color: var(--muted);
   font-size: 0.7rem;

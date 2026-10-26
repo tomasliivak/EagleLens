@@ -138,17 +138,6 @@ function Stars({ value }: { value: number | null }) {
   )
 }
 
-// Percentile (0–100) → "72nd pct". Rounded and clamped to 1–99 so the label
-// never claims an absolute extreme; null/undefined → null (indicator omitted).
-function pctLabel(p: number | null | undefined): string | null {
-  if (p === null || p === undefined) return null
-  const n = Math.max(1, Math.min(99, Math.round(p)))
-  const mod100 = n % 100
-  const suffix =
-    mod100 >= 11 && mod100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th')
-  return `${n}${suffix} pct`
-}
-
 const PCT_TOOLTIP =
   "Percentile among all BC professor-course pairs (each professor's average in a " +
   'course across semesters). Ties count as half. Higher means more, not better.'
@@ -532,16 +521,6 @@ export default function CoursePage() {
                       Overall · {prof.overallEvaluations ?? 0}{' '}
                       {prof.overallEvaluations === 1 ? 'eval' : 'evals'}
                     </div>
-                    {pctLabel(prof.deptRatingPct) && (
-                      <div
-                        className="pcard__pct"
-                        title={`Bayesian-adjusted overall rating vs. other professors in ${
-                          prof.deptName ?? 'their department'
-                        }`}
-                      >
-                        {pctLabel(prof.deptRatingPct)} in dept
-                      </div>
-                    )}
                   </div>
                 </div>
 
